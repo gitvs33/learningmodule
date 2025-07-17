@@ -9,7 +9,7 @@
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            overflow: hidden;
+            overflow-x: hidden; /* Prevent horizontal scroll on small screens */
         }
         .node {
             transition: transform 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
@@ -45,48 +45,48 @@
         }
     </style>
 </head>
-<body class="bg-gray-800 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+<body class="bg-gray-800 text-gray-200 flex flex-col items-center justify-center min-h-screen p-2 sm:p-4">
 
-    <div class="w-full max-w-7xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-6 relative">
+    <div class="w-full max-w-7xl mx-auto bg-gray-900 rounded-2xl shadow-2xl p-4 sm:p-6 relative">
         <!-- Title -->
-        <h1 class="text-3xl font-bold text-center text-amber-300 mb-2">The Backpropagation Coffee Shop</h1>
-        <p class="text-center text-gray-400 mb-6">Learn how a neural network "learns" by adjusting a coffee recipe.</p>
+        <h1 class="text-2xl md:text-3xl font-bold text-center text-amber-300 mb-2">The Backpropagation Coffee Shop</h1>
+        <p class="text-center text-gray-400 mb-4 md:mb-6">Learn how a neural network "learns" by adjusting a coffee recipe.</p>
 
         <!-- Main Animation Canvas -->
-        <div id="canvas" class="relative h-[450px] w-full border-2 border-gray-700 rounded-lg bg-gray-800/50 p-4">
+        <div id="canvas" class="relative h-[400px] md:h-[450px] w-full border-2 border-gray-700 rounded-lg bg-gray-800/50 p-2 sm:p-4">
             <!-- Nodes -->
-            <div id="beans-node" class="node absolute top-1/4 -translate-y-1/2 left-[5%] w-36 h-24 bg-blue-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
-                <span class="text-4xl">🫘</span>
-                <span class="font-bold">Coffee Beans</span>
-                <span id="beans-value">20g</span>
+            <div id="beans-node" class="node absolute top-1/4 -translate-y-1/2 left-[5%] w-28 h-24 md:w-36 md:h-24 bg-blue-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
+                <span class="text-3xl md:text-4xl">🫘</span>
+                <span class="font-bold text-sm">Coffee Beans</span>
+                <span id="beans-value" class="text-sm">20g</span>
             </div>
-            <div id="sugar-node" class="node absolute top-3/4 -translate-y-1/2 left-[5%] w-36 h-24 bg-blue-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
-                <span class="text-4xl">🍬</span>
-                <span class="font-bold">Sugar</span>
-                <span id="sugar-value">15g</span>
+            <div id="sugar-node" class="node absolute top-3/4 -translate-y-1/2 left-[5%] w-28 h-24 md:w-36 md:h-24 bg-blue-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
+                <span class="text-3xl md:text-4xl">🍬</span>
+                <span class="font-bold text-sm">Sugar</span>
+                <span id="sugar-value" class="text-sm">15g</span>
             </div>
-            <div id="mix-node" class="node absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-36 h-24 bg-emerald-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
-                <span class="text-4xl">🧑‍🍳</span>
-                <span class="font-bold">Mix Recipe</span>
-                <span id="mix-value"></span>
+            <div id="mix-node" class="node absolute top-1/2 -translate-y-1/2 left-1/2 -translate-x-1/2 w-28 h-24 md:w-36 md:h-24 bg-emerald-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
+                <span class="text-3xl md:text-4xl">🧑‍🍳</span>
+                <span class="font-bold text-sm">Mix Recipe</span>
+                <span id="mix-value" class="text-xs"></span>
             </div>
-            <div id="customer-node" class="node absolute top-1/2 -translate-y-1/2 right-[5%] w-36 h-24 bg-purple-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
-                <span class="text-4xl">😋</span>
-                <span class="font-bold">Taste Score</span>
-                <span id="customer-value" class="text-2xl font-bold">? / 10</span>
+            <div id="customer-node" class="node absolute top-1/2 -translate-y-1/2 right-[5%] w-28 h-24 md:w-36 md:h-24 bg-purple-600 rounded-lg flex flex-col items-center justify-center p-2 shadow-lg z-20">
+                <span class="text-3xl md:text-4xl">😋</span>
+                <span class="font-bold text-sm">Taste Score</span>
+                <span id="customer-value" class="text-xl md:text-2xl font-bold">? / 10</span>
             </div>
         </div>
         
         <!-- Controls and Explanation -->
         <div class="mt-6 flex flex-col md:flex-row gap-6">
             <div class="w-full md:w-1/3">
-                <h2 class="text-xl font-bold text-amber-400 mb-3">Controls</h2>
+                <h2 class="text-lg md:text-xl font-bold text-amber-400 mb-3">Controls</h2>
                 <div class="space-y-3">
-                    <button id="forward-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 text-lg">
-                        1. Make Coffee (Forward Pass)
+                    <button id="forward-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 md:py-3 px-4 rounded-lg transition-colors duration-300 text-base md:text-lg">
+                        1. Make Coffee
                     </button>
-                    <button id="backward-btn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-3 px-4 rounded-lg transition-colors duration-300 text-lg btn-disabled">
-                        2. Get Feedback (Backward Pass)
+                    <button id="backward-btn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 md:py-3 px-4 rounded-lg transition-colors duration-300 text-base md:text-lg btn-disabled">
+                        2. Get Feedback
                     </button>
                      <button id="reset-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
                         Start a New Order
@@ -94,8 +94,8 @@
                 </div>
             </div>
             <div class="w-full md:w-2/3 bg-gray-800 p-4 rounded-lg">
-                <h2 class="text-xl font-bold text-amber-400 mb-3">What's Happening?</h2>
-                <div id="explanation-text" class="text-gray-300 space-y-2">
+                <h2 class="text-lg md:text-xl font-bold text-amber-400 mb-3">What's Happening?</h2>
+                <div id="explanation-text" class="text-gray-300 space-y-2 text-sm">
                     <p>Our goal is to get a perfect 10/10 taste score. Let's start with our initial recipe and see what the customer thinks!</p>
                 </div>
             </div>
@@ -213,7 +213,7 @@
                         
                         setTimeout(() => {
                             nodes.customer.classList.remove('pulse');
-                            values.customer.innerHTML = `<span class="text-3xl">${currentTaste.toFixed(1)}</span> / 10`;
+                            values.customer.innerHTML = `<span class="text-xl md:text-3xl">${currentTaste.toFixed(1)}</span> / 10`;
                             
                             if (Math.abs(currentTaste - idealTaste) < 0.1) {
                                 updateExplanation(`<p class="text-green-400 font-bold text-lg">A perfect 10/10! The recipe is optimized! 🎉</p>`);
