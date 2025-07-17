@@ -54,12 +54,27 @@
                 </button>
             </div>
 
-            <!-- Explanation Area -->
-            <div id="explanation-text" class="space-y-4 bg-gray-900 p-4 rounded-lg">
+            <!-- Static Explanation Area -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <h3 class="text-lg font-semibold text-teal-400">How it Works</h3>
+                    <div class="mt-2 space-y-3 text-sm text-gray-400">
+                        <p>
+                            <strong class="text-cyan-400">1. Forward Pass (Calculating the Answer):</strong><br>
+                            This pass computes the final value of the expression. It starts with the input variables (e.g., 'a', 'x') and moves forward through the graph, performing each operation until it reaches the final output node, 'f', which represents the answer.
+                        </p>
+                        <p>
+                            <strong class="text-pink-400">2. Backward Pass (Finding the Influence):</strong><br>
+                            This is the core of autograd. It moves backward from the output 'f' to calculate the <strong>gradient (g)</strong> for each node. The gradient tells you how much a small change in that node's value would affect the final output.
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Dynamic Explanation Area -->
+            <div id="explanation-text" class="space-y-4 bg-gray-900 p-4 rounded-lg h-32">
                 <h3 class="font-semibold text-gray-200 mb-2">Instructions:</h3>
-                <p class="text-sm text-gray-400">1. Select an expression.</p>
-                <p class="text-sm text-gray-400">2. Click 'Forward Pass' to see values computed.</p>
-                <p class="text-sm text-gray-400">3. Click 'Backward Pass' to see gradients flow back.</p>
+                <p class="text-sm text-gray-400">1. Select an expression and click "Forward Pass" to begin.</p>
             </div>
         </div>
 
@@ -73,7 +88,6 @@
     <script>
         const canvas = document.getElementById('graph-canvas');
         const ctx = canvas.getContext('2d');
-        const generateBtn = document.getElementById('generate-btn');
         const exampleSelect = document.getElementById('example-select');
         const explanationText = document.getElementById('explanation-text');
         const forwardBtn = document.getElementById('forward-btn');
