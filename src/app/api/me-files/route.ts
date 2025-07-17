@@ -1,0 +1,10 @@
+
+export async function GET() {
+  const meDir = path.join(process.cwd(), "public", "me");
+  let files: string[] = [];
+  if (fs.existsSync(meDir)) {
+    files = fs.readdirSync(meDir).filter((file) => file.endsWith(".html"));
+  }
+  return NextResponse.json({ files });
+}
+

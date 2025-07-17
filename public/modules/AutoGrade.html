@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Autograd Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        canvas {
+            cursor: grab;
+        }
+        canvas.grabbing {
+            cursor: grabbing;
+        }
+        .btn-disabled {
+            background-color: #4b5563;
+            cursor: not-allowed;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200 flex flex-col items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl bg-gray-800 rounded-2xl shadow-2xl flex flex-col lg:flex-row overflow-hidden">
+        
+        <!-- Controls and Explanation Panel -->
+        <div class="w-full lg:w-1/3 p-6 bg-gray-800/50 border-b lg:border-b-0 lg:border-r border-gray-700">
+            <h1 class="text-2xl font-bold text-teal-400 mb-2">Autograd Visualizer</h1>
+            <p class="text-sm text-gray-400 mb-6">See how Automatic Differentiation works step-by-step.</p>
+
+            <!-- Controls -->
+            <div class="space-y-4 mb-6">
+                <div>
+                    <label for="example-select" class="block text-sm font-medium text-gray-300 mb-2">Choose an Expression:</label>
+                    <select id="example-select" class="w-full bg-gray-700 border border-gray-600 text-white rounded-lg focus:ring-teal-500 focus:border-teal-500 p-2.5">
+                        <option value="linear">Linear: f = a*x + b</option>
+                        <option value="quadratic">Quadratic: f = x² + 2*x + 1</option>
+                        <option value="complex">Complex: f = sin(a*b + c)</option>
+                    </select>
+                </div>
+                <div class="grid grid-cols-2 gap-4">
+                    <button id="forward-btn" class="w-full bg-cyan-600 hover:bg-cyan-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                        1. Forward Pass
+                    </button>
+                    <button id="backward-btn" class="w-full bg-pink-600 hover:bg-pink-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300 btn-disabled">
+                        2. Backward Pass
+                    </button>
+                </div>
+                 <button id="reset-btn" class="w-full bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-4 rounded-lg transition-colors duration-300">
+                    Reset
+                </button>
+            </div>
+
+            <!-- Explanation Area -->
+            <div id="explanation-text" class="space-y-4 bg-gray-900 p-4 rounded-lg">
+                <h3 class="font-semibold text-gray-200 mb-2">Instructions:</h3>
+                <p class="text-sm text-gray-400">1. Select an expression.</p>
+                <p class="text-sm text-gray-400">2. Click 'Forward Pass' to see values computed.</p>
+                <p class="text-sm text-gray-400">3. Click 'Backward Pass' to see gradients flow back.</p>
+            </div>
+        </div>
+
+        <!-- Canvas Area -->
+        <div class="w-full lg:w-2/3 p-4 flex-grow flex items-center justify-center bg-gray-900">
+            <canvas id="graph-canvas" class="rounded-lg w-full h-full"></canvas>
+        </div>
+
+    </div>
+
+    <script>
+        const canvas = document.getElementById('graph-canvas');
+        const ctx = canvas.getContext('2d');
+        const generateBtn = document.getElementById('generate-btn');
+        const exampleSelect = document.getElementById('example-select');
+        const explanationText = document.getElementById('explanation-text');
+        const forwardBtn = document.getElementById('forward-btn');
+        const backwardBtn = document.getElementById('backward-btn');
+        const resetBtn = document.getElementById('reset-btn');
+
+        let nodes = [];
+        let edges = [];
+        let selectedNode = null;
+        let isDragging = false;
+        let dragOffsetX, dragOffsetY;
+        let animationSpeed = 500; // ms per step
+
+        const graphExamples = {
+            linear: {
+                // f = a*x + b where a=2, x=3, b=4
+                nodes: [
+                    { id: 'a', label: 'a', type: 'variable', x: 100, y: 150, value: 2, grad: 0 },
+                    { id: 'x', label: 'x', type: 'variable', x: 100, y: 350, value: 3, grad: 0 },
+                    { id: 'b', label: 'b', type: 'variable', x: 250, y: 450, value: 4, grad: 0 },
+                    { id: 'op1', label: '*', type: 'op', x: 250, y: 250, value: null, grad: 0 },
+                    { id: 'op2', label: '+', type: 'op', x: 400, y: 350, value: null, grad: 0 },
+                    { id: 'f', label: 'f', type: 'output', x: 550, y: 350, value: null, grad: 1 },
+                ],
+                edges: [
+                    { from: 'a', to: 'op1' }, { from: 'x', to: 'op1' },
+                    { from: 'op1', to: 'op2' }, { from: 'b', to: 'op2' },
+                    { from: 'op2', to: 'f' }
+                ],
+                forwardPass: [
+                    { node: 'op1', calc: (n) => n.a.value * n.x.value },
+                    { node: 'op2', calc: (n) => n.op1.value + n.b.value },
+                    { node: 'f', calc: (n) => n.op2.value },
+                ],
+                backwardPass: [
+                    { from: 'f', to: 'op2', calc: (n) => n.f.grad },
+                    { from: 'op2', to: 'op1', calc: (n) => n.op2.grad * 1 }, // d(op1+b)/d(op1) = 1
+                    { from: 'op2', to: 'b', calc: (n) => n.op2.grad * 1 }, // d(op1+b)/d(b) = 1
+                    { from: 'op1', to: 'a', calc: (n) => n.op1.grad * n.x.value }, // d(a*x)/d(a) = x
+                    { from: 'op1', to: 'x', calc: (n) => n.op1.grad * n.a.value }, // d(a*x)/d(x) = a
+                ]
+            },
+            quadratic: {
+                // f = x^2 + 2*x + 1 where x=3
+                nodes: [
+                    { id: 'x', label: 'x', type: 'variable', x: 100, y: 250, value: 3, grad: 0 },
+                    { id: 'c1', label: '2', type: 'constant', x: 100, y: 400, value: 2, grad: 0 },
+                    { id: 'c2', label: '1', type: 'constant', x: 400, y: 450, value: 1, grad: 0 },
+                    { id: 'op1', label: 'x²', type: 'op', x: 250, y: 150, value: null, grad: 0 },
+                    { id: 'op2', label: '*', type: 'op', x: 250, y: 350, value: null, grad: 0 },
+                    { id: 'op3', label: '+', type: 'op', x: 400, y: 250, value: null, grad: 0 },
+                    { id: 'op4', label: '+', type: 'op', x: 550, y: 350, value: null, grad: 0 },
+                    { id: 'f', label: 'f', type: 'output', x: 700, y: 350, value: null, grad: 1 },
+                ],
+                edges: [
+                    { from: 'x', to: 'op1' }, { from: 'x', to: 'op2' },
+                    { from: 'c1', to: 'op2' }, { from: 'op1', to: 'op3' },
+                    { from: 'op2', to: 'op3' }, { from: 'op3', to: 'op4' },
+                    { from: 'c2', to: 'op4' }, { from: 'op4', to: 'f' }
+                ],
+                 forwardPass: [
+                    { node: 'op1', calc: (n) => n.x.value ** 2 },
+                    { node: 'op2', calc: (n) => n.c1.value * n.x.value },
+                    { node: 'op3', calc: (n) => n.op1.value + n.op2.value },
+                    { node: 'op4', calc: (n) => n.op3.value + n.c2.value },
+                    { node: 'f', calc: (n) => n.op4.value },
+                ],
+                backwardPass: [
+                    { from: 'f', to: 'op4', calc: (n) => n.f.grad },
+                    { from: 'op4', to: 'op3', calc: (n) => n.op4.grad * 1 },
+                    { from: 'op4', to: 'c2', calc: (n) => n.op4.grad * 1 },
+                    { from: 'op3', to: 'op1', calc: (n) => n.op3.grad * 1 },
+                    { from: 'op3', to: 'op2', calc: (n) => n.op3.grad * 1 },
+                    { from: 'op1', to: 'x', calc: (n) => n.op1.grad * 2 * n.x.value }, // d(x^2)/dx = 2x
+                    { from: 'op2', to: 'x', calc: (n) => n.op2.grad * n.c1.value }, // d(2x)/dx = 2
+                    { from: 'op2', to: 'c1', calc: (n) => n.op2.grad * n.x.value },
+                ]
+            },
+            complex: {
+                // f = sin(a*b + c) where a=2, b=3, c=4
+                nodes: [
+                    { id: 'a', label: 'a', type: 'variable', x: 50, y: 150, value: 2, grad: 0 },
+                    { id: 'b', label: 'b', type: 'variable', x: 50, y: 300, value: 3, grad: 0 },
+                    { id: 'c', label: 'c', type: 'variable', x: 200, y: 400, value: 4, grad: 0 },
+                    { id: 'op1', label: '*', type: 'op', x: 200, y: 225, value: null, grad: 0 },
+                    { id: 'op2', label: '+', type: 'op', x: 350, y: 312, value: null, grad: 0 },
+                    { id: 'op3', label: 'sin', type: 'op', x: 500, y: 312, value: null, grad: 0 },
+                    { id: 'f', label: 'f', type: 'output', x: 650, y: 312, value: null, grad: 1 },
+                ],
+                edges: [
+                    { from: 'a', to: 'op1' }, { from: 'b', to: 'op1' },
+                    { from: 'op1', to: 'op2' }, { from: 'c', to: 'op2' },
+                    { from: 'op2', to: 'op3' }, { from: 'op3', to: 'f' }
+                ],
+                forwardPass: [
+                    { node: 'op1', calc: (n) => n.a.value * n.b.value },
+                    { node: 'op2', calc: (n) => n.op1.value + n.c.value },
+                    { node: 'op3', calc: (n) => Math.sin(n.op2.value) },
+                    { node: 'f', calc: (n) => n.op3.value },
+                ],
+                backwardPass: [
+                    { from: 'f', to: 'op3', calc: (n) => n.f.grad },
+                    { from: 'op3', to: 'op2', calc: (n) => n.op3.grad * Math.cos(n.op2.value) }, // d(sin(x))/dx = cos(x)
+                    { from: 'op2', to: 'op1', calc: (n) => n.op2.grad * 1 },
+                    { from: 'op2', to: 'c', calc: (n) => n.op2.grad * 1 },
+                    { from: 'op1', to: 'a', calc: (n) => n.op1.grad * n.b.value },
+                    { from: 'op1', to: 'b', calc: (n) => n.op1.grad * n.a.value },
+                ]
+            }
+        };
+
+        let nodeMap = {};
+
+        function setupGraph() {
+            const selectedExample = exampleSelect.value;
+            const graphData = graphExamples[selectedExample];
+            
+            nodes = JSON.parse(JSON.stringify(graphData.nodes));
+            edges = JSON.parse(JSON.stringify(graphData.edges));
+            
+            nodeMap = nodes.reduce((acc, node) => {
+                acc[node.id] = node;
+                return acc;
+            }, {});
+
+            forwardBtn.classList.remove('btn-disabled');
+            backwardBtn.classList.add('btn-disabled');
+            explanationText.innerHTML = `
+                <h3 class="font-semibold text-gray-200 mb-2">Ready to Start</h3>
+                <p class="text-sm text-gray-400">Click 'Forward Pass' to begin the calculation.</p>
+            `;
+
+            draw();
+        }
+
+        function drawNode(node, highlight = false) {
+            const radius = 40;
+            ctx.beginPath();
+            ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+
+            let color;
+            switch(node.type) {
+                case 'variable': color = '#3b82f6'; break;
+                case 'constant': color = '#f59e0b'; break;
+                case 'op': color = '#10b981'; break;
+                case 'output': color = '#a855f7'; break;
+                default: color = '#6b7280';
+            }
+            ctx.fillStyle = color;
+
+            if (highlight) {
+                ctx.fillStyle = '#ec4899';
+                ctx.shadowColor = 'white';
+                ctx.shadowBlur = 15;
+            } else {
+                ctx.shadowColor = 'transparent';
+                ctx.shadowBlur = 0;
+            }
+
+            ctx.fill();
+            ctx.strokeStyle = '#1f2937';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+
+            // Label
+            ctx.fillStyle = 'white';
+            ctx.font = 'bold 16px Inter';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(node.label, node.x, node.y - 12);
+
+            // Value
+            if (node.value !== null) {
+                ctx.font = '12px Inter';
+                ctx.fillStyle = '#a5f3fc'; // cyan-200
+                ctx.fillText(`v: ${node.value.toFixed(2)}`, node.x, node.y + 5);
+            }
+
+            // Gradient
+            if (node.grad !== null && node.grad !== 0) {
+                 ctx.font = '12px Inter';
+                 ctx.fillStyle = '#f9a8d4'; // pink-300
+                 ctx.fillText(`g: ${node.grad.toFixed(2)}`, node.x, node.y + 20);
+            }
+        }
+        
+        function drawEdge(edge, highlight = false) {
+            const fromNode = nodeMap[edge.from];
+            const toNode = nodeMap[edge.to];
+            if (!fromNode || !toNode) return;
+
+            ctx.beginPath();
+            ctx.moveTo(fromNode.x, fromNode.y);
+            ctx.lineTo(toNode.x, toNode.y);
+            ctx.strokeStyle = highlight ? '#ec4899' : '#4b5563';
+            ctx.lineWidth = highlight ? 4 : 2;
+            ctx.stroke();
+
+            const headlen = 10;
+            const angle = Math.atan2(toNode.y - fromNode.y, toNode.x - fromNode.x);
+            ctx.beginPath();
+            ctx.moveTo(toNode.x, toNode.y);
+            ctx.lineTo(toNode.x - headlen * Math.cos(angle - Math.PI / 6), toNode.y - headlen * Math.sin(angle - Math.PI / 6));
+            ctx.lineTo(toNode.x - headlen * Math.cos(angle + Math.PI / 6), toNode.y - headlen * Math.sin(angle + Math.PI / 6));
+            ctx.closePath();
+            ctx.fillStyle = highlight ? '#ec4899' : '#4b5563';
+            ctx.fill();
+        }
+
+        function draw(highlights = {}) {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            if (canvas.width !== rect.width || canvas.height !== rect.height) {
+                canvas.width = rect.width;
+                canvas.height = rect.height;
+            }
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            
+            edges.forEach(edge => drawEdge(edge, highlights.edge && highlights.edge.from === edge.from && highlights.edge.to === edge.to));
+            nodes.forEach(node => drawNode(node, highlights.node === node.id));
+        }
+
+        function animatePass(pass, onComplete) {
+            let step = 0;
+            forwardBtn.classList.add('btn-disabled');
+            backwardBtn.classList.add('btn-disabled');
+
+            function nextStep() {
+                if (step >= pass.length) {
+                    draw();
+                    onComplete();
+                    return;
+                }
+
+                const currentStep = pass[step];
+                const nodeToUpdate = nodeMap[currentStep.node];
+                
+                if (nodeToUpdate) { // Forward Pass
+                    nodeToUpdate.value = currentStep.calc(nodeMap);
+                    draw({ node: nodeToUpdate.id });
+                    explanationText.innerHTML = `<h3 class="font-semibold text-gray-200 mb-2">Forward Pass</h3><p class="text-sm text-gray-400">Computing value for node: <strong>${nodeToUpdate.label}</strong></p><p class="text-sm text-cyan-300">New Value: ${nodeToUpdate.value.toFixed(3)}</p>`;
+                } else { // Backward Pass
+                    const fromNode = nodeMap[currentStep.from];
+                    const toNode = nodeMap[currentStep.to];
+                    const grad_val = currentStep.calc(nodeMap);
+                    toNode.grad += grad_val;
+                    draw({ node: toNode.id, edge: currentStep });
+                    explanationText.innerHTML = `<h3 class="font-semibold text-gray-200 mb-2">Backward Pass</h3><p class="text-sm text-gray-400">Propagating gradient from <strong>${fromNode.label}</strong> to <strong>${toNode.label}</strong>.</p><p class="text-sm text-pink-300">Gradient contribution: ${grad_val.toFixed(3)}</p><p class="text-sm text-pink-300">New total gradient for ${toNode.label}: ${toNode.grad.toFixed(3)}</p>`;
+                }
+
+                step++;
+                setTimeout(nextStep, animationSpeed);
+            }
+            nextStep();
+        }
+
+        forwardBtn.addEventListener('click', () => {
+            if (forwardBtn.classList.contains('btn-disabled')) return;
+            const graphData = graphExamples[exampleSelect.value];
+            animatePass(graphData.forwardPass, () => {
+                backwardBtn.classList.remove('btn-disabled');
+                explanationText.innerHTML = `<h3 class="font-semibold text-gray-200 mb-2">Forward Pass Complete!</h3><p class="text-sm text-gray-400">All values have been computed. Now click 'Backward Pass' to see how gradients are calculated.</p>`;
+            });
+        });
+        
+        backwardBtn.addEventListener('click', () => {
+            if (backwardBtn.classList.contains('btn-disabled')) return;
+            const graphData = graphExamples[exampleSelect.value];
+            animatePass(graphData.backwardPass, () => {
+                 explanationText.innerHTML = `<h3 class="font-semibold text-gray-200 mb-2">Backward Pass Complete!</h3><p class="text-sm text-gray-400">All gradients have been computed. This shows how much each variable affects the final output.</p>`;
+            });
+        });
+
+        resetBtn.addEventListener('click', setupGraph);
+        exampleSelect.addEventListener('change', setupGraph);
+
+        // --- Interactivity ---
+        canvas.addEventListener('mousedown', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            for (let i = nodes.length - 1; i >= 0; i--) {
+                const node = nodes[i];
+                const dx = x - node.x;
+                const dy = y - node.y;
+                if (dx * dx + dy * dy < 40 * 40) { // 40 is radius
+                    selectedNode = node;
+                    isDragging = true;
+                    canvas.classList.add('grabbing');
+                    dragOffsetX = x - node.x;
+                    dragOffsetY = y - node.y;
+                    return;
+                }
+            }
+        });
+
+        canvas.addEventListener('mousemove', (e) => {
+            if (!isDragging || !selectedNode) return;
+            const rect = canvas.getBoundingClientRect();
+            selectedNode.x = e.clientX - rect.left - dragOffsetX;
+            selectedNode.y = e.clientY - rect.top - dragOffsetY;
+            draw();
+        });
+
+        canvas.addEventListener('mouseup', () => {
+            isDragging = false;
+            selectedNode = null;
+            canvas.classList.remove('grabbing');
+        });
+        
+        // Initial setup
+        window.addEventListener('load', setupGraph);
+        new ResizeObserver(() => draw()).observe(canvas.parentElement);
+
+    </script>
+</body>
+</html>
