@@ -28,7 +28,7 @@ export default function Home() {
           Professional Learning Module Library
         </h1>
         <p className="text-gray-700 dark:text-gray-300 text-lg sm:text-xl mb-6 animate-fade-in delay-100">
-          Learn by interacting! Launch hands-on HTML modules or upload your own and start exploring concepts through real interaction.
+          Learn by interacting! Launch hands-on HTML modules or upload your own and start exploring concepts through real interaction (Desktop view is prefered).
         </p>
       </header>
       <main className="w-full max-w-5xl mx-auto flex-1 flex flex-col items-center">
