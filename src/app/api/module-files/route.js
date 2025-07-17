@@ -7,7 +7,7 @@ export async function GET() {
   if (fs.existsSync(meDir)) {
     files = fs.readdirSync(meDir).filter((file) => file.endsWith(".html"));
   }
-  return new Response(JSON.stringify(files), {
+  return new Response(JSON.stringify({ files }), {
     headers: { "Content-Type": "application/json" },
   });
 }

@@ -2,7 +2,7 @@
 import Image from "next/image";
 
 
-import LearningCards from "./LearningCards";
+import LearningCards from './components/LearningCards';
 
 
 
