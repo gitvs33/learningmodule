@@ -1,0 +1,550 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Neural Network Tutorial</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            overscroll-behavior: none;
+        }
+        .scene-controls {
+            display: none;
+        }
+        .scene-controls.active {
+            display: flex;
+        }
+        .info-panel {
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+        }
+        canvas {
+            touch-action: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            -webkit-appearance: none;
+            appearance: none;
+            width: 20px;
+            height: 20px;
+            background: #4F46E5;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+        input[type="range"]::-moz-range-thumb {
+            width: 20px;
+            height: 20px;
+            background: #4F46E5;
+            cursor: pointer;
+            border-radius: 50%;
+            border: 2px solid white;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+
+    <div class="w-full max-w-5xl mx-auto bg-gray-800 rounded-2xl shadow-2xl flex flex-col">
+        <!-- Header & Navigation -->
+        <header class="bg-gray-900/50 p-4 rounded-t-2xl border-b border-gray-700">
+            <h1 class="text-xl md:text-2xl font-bold text-center text-indigo-300">Neural Network Interactive Tutorial</h1>
+            <div class="flex justify-center space-x-2 mt-3">
+                <button id="btn-scene1" class="px-4 py-2 text-sm font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">1. The Neuron</button>
+                <button id="btn-scene2" class="px-4 py-2 text-sm font-semibold bg-gray-700 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition">2. Learning</button>
+                <button id="btn-scene3" class="px-4 py-2 text-sm font-semibold bg-gray-700 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition">3. Problems</button>
+            </div>
+        </header>
+
+        <!-- Main Content Area -->
+        <div class="relative w-full aspect-[16/9]">
+            <canvas id="nn-canvas" class="absolute top-0 left-0 w-full h-full bg-gray-800"></canvas>
+            
+            <!-- Information Panel -->
+            <div id="info-panel" class="info-panel absolute top-4 left-4 max-w-xs p-4 bg-gray-900/70 rounded-xl border border-gray-700 shadow-lg">
+                <h3 id="info-title" class="font-bold text-lg text-indigo-300 mb-2"></h3>
+                <p id="info-text" class="text-sm text-gray-300"></p>
+            </div>
+
+            <!-- Scene-specific Controls -->
+            <div id="controls-scene1" class="scene-controls absolute bottom-4 left-4 right-4 justify-center items-center gap-4 md:gap-8 p-3 bg-gray-900/70 rounded-xl border border-gray-700 flex-wrap">
+                <!-- Controls for Scene 1 will be dynamically generated here -->
+            </div>
+
+            <div id="controls-scene2" class="scene-controls absolute bottom-4 left-1/2 -translate-x-1/2 justify-center items-center gap-4">
+                <button id="btn-add-dot" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Challenge Me!</button>
+                 <button id="btn-reset-scene2" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+            </div>
+
+            <div id="controls-scene3" class="scene-controls absolute bottom-4 left-1/2 -translate-x-1/2 justify-center items-center gap-4">
+                <button id="btn-train-overfit" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Train Model</button>
+                <button id="btn-test-overfit" class="px-5 py-3 font-semibold bg-teal-600 rounded-lg shadow-md hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75 transition" disabled>Test on New Data</button>
+                <button id="btn-reset-scene3" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+            </div>
+        </div>
+    </div>
+
+<script>
+    const canvas = document.getElementById('nn-canvas');
+    const ctx = canvas.getContext('2d');
+
+    // Control and Info Panel elements
+    const infoTitle = document.getElementById('info-title');
+    const infoText = document.getElementById('info-text');
+    const controls = {
+        scene1: document.getElementById('controls-scene1'),
+        scene2: document.getElementById('controls-scene2'),
+        scene3: document.getElementById('controls-scene3'),
+    };
+    const navButtons = {
+        scene1: document.getElementById('btn-scene1'),
+        scene2: document.getElementById('btn-scene2'),
+        scene3: document.getElementById('btn-scene3'),
+    };
+
+    let currentScene = 1;
+    let animationFrameId;
+
+    // --- Scene 1: The Neuron ---
+    const scene1State = {
+        inputs: [
+            { label: 'Sunny?', active: false, x: 0, y: 0, radius: 0 },
+            { label: 'Weekend?', active: false, x: 0, y: 0, radius: 0 },
+            { label: 'Rested?', active: false, x: 0, y: 0, radius: 0 },
+        ],
+        weights: [0.5, 0.5, 0.5],
+        bias: -0.7,
+        neuron: { x: 0, y: 0, radius: 0, activation: 0 },
+        output: { label: 'Go for a Run!', x: 0, y: 0, radius: 0, active: false },
+        initialized: false
+    };
+
+    function setupScene1Controls() {
+        const controlsContainer = controls.scene1;
+        controlsContainer.innerHTML = ''; // Clear previous controls
+        scene1State.inputs.forEach((input, i) => {
+            const controlGroup = document.createElement('div');
+            controlGroup.className = 'flex flex-col items-center text-xs md:text-sm';
+            
+            const label = document.createElement('label');
+            label.textContent = `${input.label} (Weight)`;
+            label.className = 'font-medium mb-1';
+            
+            const slider = document.createElement('input');
+            slider.type = 'range';
+            slider.min = -1;
+            slider.max = 1;
+            slider.step = 0.1;
+            slider.value = scene1State.weights[i];
+            slider.className = 'w-24 md:w-32';
+            slider.oninput = (e) => {
+                scene1State.weights[i] = parseFloat(e.target.value);
+            };
+            
+            controlGroup.appendChild(label);
+            controlGroup.appendChild(slider);
+            controlsContainer.appendChild(controlGroup);
+        });
+    }
+
+    function initScene1() {
+        infoTitle.textContent = '1. The Neuron: A Simple Calculator';
+        infoText.textContent = 'A neuron takes inputs, multiplies them by their "importance" (weights), and fires if the total is above a threshold. Click the input circles to toggle them. Use the sliders to see how changing weights affects the final decision.';
+        
+        if (!scene1State.initialized) {
+            setupScene1Controls();
+            scene1State.initialized = true;
+        }
+        
+        canvas.onclick = (e) => {
+            if (currentScene !== 1) return;
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+
+            scene1State.inputs.forEach(input => {
+                const dist = Math.hypot(x - input.x, y - input.y);
+                if (dist < input.radius) {
+                    input.active = !input.active;
+                }
+            });
+        };
+    }
+
+    function drawScene1() {
+        const w = canvas.width;
+        const h = canvas.height;
+        const neuronRadius = Math.min(w, h) * 0.08;
+
+        // Position elements
+        scene1State.inputs.forEach((input, i) => {
+            input.x = w * 0.2;
+            input.y = h * (0.25 + i * 0.25);
+            input.radius = neuronRadius * 0.7;
+        });
+        scene1State.neuron.x = w * 0.5;
+        scene1State.neuron.y = h * 0.5;
+        scene1State.neuron.radius = neuronRadius;
+        scene1State.output.x = w * 0.8;
+        scene1State.output.y = h * 0.5;
+        scene1State.output.radius = neuronRadius * 0.8;
+
+        // Calculation
+        let sum = scene1State.bias;
+        scene1State.inputs.forEach((input, i) => {
+            if (input.active) {
+                sum += 1 * scene1State.weights[i];
+            }
+        });
+        scene1State.neuron.activation = 1 / (1 + Math.exp(-sum)); // Sigmoid function
+        scene1State.output.active = scene1State.neuron.activation > 0.7;
+
+        // Drawing
+        ctx.clearRect(0, 0, w, h);
+        
+        // Draw connections
+        scene1State.inputs.forEach((input, i) => {
+            ctx.beginPath();
+            ctx.moveTo(input.x, input.y);
+            ctx.lineTo(scene1State.neuron.x, scene1State.neuron.y);
+            ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(scene1State.weights[i]) * 0.9})`;
+            ctx.lineWidth = 1 + Math.abs(scene1State.weights[i]) * 8;
+            ctx.stroke();
+        });
+
+        ctx.beginPath();
+        ctx.moveTo(scene1State.neuron.x, scene1State.neuron.y);
+        ctx.lineTo(scene1State.output.x, scene1State.output.y);
+        ctx.strokeStyle = `rgba(167, 139, 250, ${scene1State.output.active ? 1 : 0.2})`;
+        ctx.lineWidth = 8;
+        ctx.stroke();
+
+        // Draw nodes
+        scene1State.inputs.forEach(input => {
+            ctx.beginPath();
+            ctx.arc(input.x, input.y, input.radius, 0, 2 * Math.PI);
+            ctx.fillStyle = input.active ? '#22C55E' : '#EF4444';
+            ctx.fill();
+            ctx.strokeStyle = '#9CA3AF';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+            ctx.fillStyle = 'white';
+            ctx.font = `${neuronRadius*0.3}px Inter`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(input.label, input.x, input.y);
+        });
+
+        ctx.beginPath();
+        ctx.arc(scene1State.neuron.x, scene1State.neuron.y, scene1State.neuron.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = `rgba(139, 92, 246, ${0.2 + scene1State.neuron.activation * 0.8})`;
+        ctx.fill();
+        ctx.strokeStyle = '#A78BFA';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.fillStyle = 'white';
+        ctx.font = `bold ${neuronRadius*0.3}px Inter`;
+        ctx.fillText('Decision', scene1State.neuron.x, scene1State.neuron.y - 15);
+        ctx.font = `${neuronRadius*0.25}px Inter`;
+        ctx.fillText(`Activation: ${scene1State.neuron.activation.toFixed(2)}`, scene1State.neuron.x, scene1State.neuron.y + 15);
+
+        ctx.beginPath();
+        ctx.arc(scene1State.output.x, scene1State.output.y, scene1State.output.radius, 0, 2 * Math.PI);
+        ctx.fillStyle = scene1State.output.active ? '#6EE7B7' : '#4B5563';
+        ctx.fill();
+        ctx.strokeStyle = scene1State.output.active ? '#34D399' : '#6B7280';
+        ctx.lineWidth = 4;
+        ctx.stroke();
+        ctx.fillStyle = scene1State.output.active ? 'black' : 'white';
+        ctx.font = `${neuronRadius*0.25}px Inter`;
+        ctx.fillText(scene1State.output.label, scene1State.output.x, scene1State.output.y);
+    }
+    
+    // --- Scene 2: Learning ---
+    const scene2State = {
+        points: [],
+        line: { m: 0.2, c: 0.4 }, // y = mx + c (in normalized 0-1 space)
+        targetLine: { m: 0.2, c: 0.4 },
+        learningRate: 0.1,
+        lastMessage: { text: '', x: 0, y: 0, alpha: 0 }
+    };
+
+    function initScene2() {
+        infoTitle.textContent = '2. How a Network Learns';
+        infoText.textContent = 'The network makes a guess using its "decision boundary" (the line). If it\'s wrong, it measures the error and nudges the line to be more accurate. Click "Challenge Me!" to add a point and see it learn.';
+        scene2State.points = [];
+        scene2State.line = { m: 0.2, c: 0.4 };
+        scene2State.targetLine = { m: 0.2, c: 0.4 };
+        document.getElementById('btn-add-dot').onclick = addDot;
+        document.getElementById('btn-reset-scene2').onclick = () => {
+             scene2State.points = [];
+             scene2State.line = { m: 0.2, c: 0.4 };
+             scene2State.targetLine = { m: 0.2, c: 0.4 };
+        };
+        canvas.onclick = null;
+    }
+
+    function addDot() {
+        const x = Math.random();
+        const y = Math.random();
+        const trueLabel = y > 0.7 * x + 0.15 ? 1 : -1; // The "ground truth" line
+        const point = { x, y, label: trueLabel };
+        scene2State.points.push(point);
+        learnFromPoint(point);
+    }
+
+    function learnFromPoint(point) {
+        const { m, c } = scene2State.line;
+        const prediction = point.y > m * point.x + c ? 1 : -1;
+        
+        const messageX = point.x * canvas.width;
+        const messageY = point.y * canvas.height - 30;
+
+        if (prediction !== point.label) {
+            // Misclassified, update line
+            const error = point.label - prediction;
+            scene2State.targetLine.m += scene2State.learningRate * error * point.x;
+            scene2State.targetLine.c += scene2State.learningRate * error;
+            scene2State.lastMessage = { text: 'Wrong! Adjusting...', x: messageX, y: messageY, alpha: 1.0, color: '#F87171' };
+        } else {
+            scene2State.lastMessage = { text: 'Correct!', x: messageX, y: messageY, alpha: 1.0, color: '#6EE7B7' };
+        }
+    }
+
+    function drawScene2() {
+        const w = canvas.width;
+        const h = canvas.height;
+
+        // Animate line towards target
+        scene2State.line.m += (scene2State.targetLine.m - scene2State.line.m) * 0.1;
+        scene2State.line.c += (scene2State.targetLine.c - scene2State.line.c) * 0.1;
+
+        // Fade out message
+        if (scene2State.lastMessage.alpha > 0) {
+            scene2State.lastMessage.alpha -= 0.01;
+        }
+
+        ctx.clearRect(0, 0, w, h);
+
+        // Draw decision boundary background
+        const { m, c } = scene2State.line;
+        ctx.fillStyle = 'rgba(99, 102, 241, 0.2)'; // Indigo zone
+        ctx.beginPath();
+        ctx.moveTo(0, c * h);
+        ctx.lineTo(w, (m * 1 + c) * h);
+        ctx.lineTo(w, 0);
+        ctx.lineTo(0, 0);
+        ctx.closePath();
+        ctx.fill();
+
+        ctx.fillStyle = 'rgba(249, 115, 22, 0.2)'; // Orange zone
+        ctx.beginPath();
+        ctx.moveTo(0, c * h);
+        ctx.lineTo(w, (m * 1 + c) * h);
+        ctx.lineTo(w, h);
+        ctx.lineTo(0, h);
+        ctx.closePath();
+        ctx.fill();
+
+        // Draw points
+        scene2State.points.forEach(p => {
+            ctx.beginPath();
+            ctx.arc(p.x * w, p.y * h, 8, 0, 2 * Math.PI);
+            ctx.fillStyle = p.label === 1 ? '#60A5FA' : '#FB923C';
+            ctx.fill();
+            ctx.strokeStyle = 'white';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+        });
+
+        // Draw decision boundary line
+        ctx.beginPath();
+        ctx.moveTo(0, c * h);
+        ctx.lineTo(w, (m * 1 + c) * h);
+        ctx.strokeStyle = '#C4B5FD';
+        ctx.lineWidth = 4;
+        ctx.setLineDash([10, 10]);
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Draw last message
+        if(scene2State.lastMessage.alpha > 0) {
+            ctx.font = 'bold 20px Inter';
+            ctx.textAlign = 'center';
+            ctx.fillStyle = `rgba(${hexToRgb(scene2State.lastMessage.color)}, ${scene2State.lastMessage.alpha})`;
+            ctx.fillText(scene2State.lastMessage.text, scene2State.lastMessage.x, scene2State.lastMessage.y);
+        }
+    }
+
+    // --- Scene 3: Overfitting ---
+    const scene3State = {
+        trainingPoints: [],
+        testPoints: [],
+        boundary: [],
+        mode: 'initial', // 'initial', 'training', 'trained', 'testing'
+        trainProgress: 0,
+    };
+
+    function initScene3() {
+        infoTitle.textContent = '3. Problem: Overfitting';
+        infoText.textContent = 'A model "overfits" when it memorizes the training data instead of learning the general pattern. Click "Train Model" to see it create a perfect but overly complex boundary. Then, "Test" it on new data.';
+        resetScene3();
+        document.getElementById('btn-train-overfit').onclick = () => { scene3State.mode = 'training'; };
+        document.getElementById('btn-test-overfit').onclick = () => { scene3State.mode = 'testing'; };
+        document.getElementById('btn-reset-scene3').onclick = resetScene3;
+        canvas.onclick = null;
+    }
+    
+    function resetScene3() {
+        scene3State.mode = 'initial';
+        scene3State.trainProgress = 0;
+        document.getElementById('btn-train-overfit').disabled = false;
+        document.getElementById('btn-test-overfit').disabled = true;
+
+        // Generate fixed training points
+        scene3State.trainingPoints = [
+            {x: 0.15, y: 0.2, label: 1}, {x: 0.2, y: 0.35, label: 1}, {x: 0.3, y: 0.25, label: 1},
+            {x: 0.25, y: 0.8, label: -1}, {x: 0.35, y: 0.9, label: -1}, {x: 0.4, y: 0.75, label: -1},
+            {x: 0.6, y: 0.2, label: 1}, {x: 0.7, y: 0.3, label: 1}, {x: 0.8, y: 0.15, label: 1},
+            {x: 0.75, y: 0.85, label: -1}, {x: 0.85, y: 0.7, label: -1}, {x: 0.9, y: 0.9, label: -1},
+        ];
+        // Generate fixed test points
+        scene3State.testPoints = [
+            {x: 0.22, y: 0.28, label: 1}, {x: 0.33, y: 0.82, label: -1},
+            {x: 0.65, y: 0.25, label: 1}, {x: 0.8, y: 0.78, label: -1},
+        ];
+    }
+
+    function drawScene3() {
+        const w = canvas.width;
+        const h = canvas.height;
+        ctx.clearRect(0, 0, w, h);
+
+        if (scene3State.mode === 'training' && scene3State.trainProgress < 1) {
+            scene3State.trainProgress += 0.01;
+        }
+        if (scene3State.trainProgress >= 1 && scene3State.mode === 'training') {
+            scene3State.mode = 'trained';
+            document.getElementById('btn-train-overfit').disabled = true;
+            document.getElementById('btn-test-overfit').disabled = false;
+        }
+
+        // Draw points
+        scene3State.trainingPoints.forEach(p => drawPoint(p, w, h));
+        if (scene3State.mode === 'testing') {
+            scene3State.testPoints.forEach(p => drawPoint(p, w, h, true));
+        }
+
+        // Draw boundary
+        const simpleBoundary = (x) => 0.5; // A simple horizontal line
+        const complexBoundary = (x) => { // A wavy line that hits the points
+            if (x < 0.5) return 0.5 - Math.sin(x * Math.PI * 2) * 0.25;
+            return 0.5 + Math.sin(x * Math.PI * 2) * 0.25;
+        };
+
+        ctx.beginPath();
+        ctx.lineWidth = 4;
+        ctx.strokeStyle = '#C4B5FD';
+        ctx.setLineDash([10, 10]);
+
+        for (let x = 0; x <= 1; x += 0.01) {
+            const simpleY = simpleBoundary(x);
+            const complexY = complexBoundary(x);
+            const currentY = simpleY + (complexY - simpleY) * scene3State.trainProgress;
+            if (x === 0) {
+                ctx.moveTo(x * w, currentY * h);
+            } else {
+                ctx.lineTo(x * w, currentY * h);
+            }
+        }
+        ctx.stroke();
+        ctx.setLineDash([]);
+        
+        // Highlight misclassified test points
+        if (scene3State.mode === 'testing') {
+            scene3State.testPoints.forEach(p => {
+                const boundaryY = complexBoundary(p.x);
+                const prediction = p.y > boundaryY ? -1 : 1;
+                if (prediction !== p.label) {
+                    ctx.beginPath();
+                    ctx.arc(p.x * w, p.y * h, 20, 0, 2 * Math.PI);
+                    ctx.strokeStyle = '#F87171';
+                    ctx.lineWidth = 4;
+                    ctx.stroke();
+                }
+            });
+        }
+    }
+
+    function drawPoint(p, w, h, isTest = false) {
+        ctx.beginPath();
+        ctx.arc(p.x * w, p.y * h, 8, 0, 2 * Math.PI);
+        ctx.globalAlpha = isTest ? 0.7 : 1.0;
+        ctx.fillStyle = p.label === 1 ? '#60A5FA' : '#FB923C';
+        ctx.fill();
+        ctx.strokeStyle = 'white';
+        ctx.lineWidth = isTest ? 1 : 2;
+        ctx.stroke();
+        ctx.globalAlpha = 1.0;
+    }
+
+
+    // --- Main Loop & Scene Management ---
+    function switchScene(sceneNum) {
+        currentScene = sceneNum;
+        cancelAnimationFrame(animationFrameId);
+
+        // Update nav button styles
+        Object.values(navButtons).forEach(btn => btn.classList.replace('bg-indigo-600', 'bg-gray-700'));
+        navButtons[`scene${sceneNum}`].classList.replace('bg-gray-700', 'bg-indigo-600');
+        
+        // Update visible controls
+        Object.values(controls).forEach(c => c.classList.remove('active'));
+        controls[`scene${sceneNum}`].classList.add('active');
+
+        if (sceneNum === 1) initScene1();
+        if (sceneNum === 2) initScene2();
+        if (sceneNum === 3) initScene3();
+
+        resizeCanvas(); // Ensure canvas is sized correctly for the new scene
+        gameLoop();
+    }
+
+    function gameLoop() {
+        if (currentScene === 1) drawScene1();
+        if (currentScene === 2) drawScene2();
+        if (currentScene === 3) drawScene3();
+        animationFrameId = requestAnimationFrame(gameLoop);
+    }
+
+    function resizeCanvas() {
+        const parent = canvas.parentElement;
+        canvas.width = parent.clientWidth;
+        canvas.height = parent.clientHeight;
+        // After resizing, we need to redraw the current scene
+        if (currentScene === 1) drawScene1();
+        if (currentScene === 2) drawScene2();
+        if (currentScene === 3) drawScene3();
+    }
+    
+    function hexToRgb(hex) {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255, 255, 255';
+    }
+
+
+    // --- Event Listeners ---
+    navButtons.scene1.onclick = () => switchScene(1);
+    navButtons.scene2.onclick = () => switchScene(2);
+    navButtons.scene3.onclick = () => switchScene(3);
+
+    window.addEventListener('resize', resizeCanvas);
+
+    // --- Initial Load ---
+    switchScene(1);
+
+</script>
+
+</body>
+</html>
