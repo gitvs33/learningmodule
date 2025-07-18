@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ML Fundamentals: Overfitting vs. Underfitting</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: #f0f2f5;
+            color: #1c1e21;
+            margin: 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .main-subtitle {
+            color: #555;
+            max-width: 700px;
+            text-align: center;
+            margin-bottom: 30px;
+            line-height: 1.6;
+        }
+        .main-container {
+            background-color: white;
+            border-radius: 12px;
+            box-shadow: 0 6px 12px rgba(0, 0, 0, 0.1);
+            padding: 25px;
+            width: 100%;
+            max-width: 800px;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            display: block;
+            margin: 15px auto;
+            border-radius: 8px;
+            width: 100%;
+        }
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin: 20px 0;
+            flex-wrap: wrap;
+        }
+        button {
+            border: none;
+            padding: 12px 24px;
+            font-size: 16px;
+            font-weight: 600;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        #underfitBtn { background-color: #ffc107; color: #333; }
+        #goodFitBtn { background-color: #28a745; color: white; }
+        #overfitBtn { background-color: #dc3545; color: white; }
+
+        button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 4px 8px rgba(0,0,0,0.15);
+        }
+        #descriptionBox {
+            margin-top: 20px;
+            padding: 20px;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+            border-left: 5px solid #ccc;
+            transition: border-color 0.5s;
+            text-align: left;
+        }
+        #descriptionBox h3 { margin-top: 0; }
+        #descriptionBox h4 { color: #333; margin-top: 15px; margin-bottom: 5px; }
+        #descriptionBox p, #descriptionBox li { line-height: 1.6; color: #444; }
+        #descriptionBox ul { padding-left: 20px; margin-top: 5px; }
+        #descriptionBox .cons { color: #dc3545; }
+        #descriptionBox .pros { color: #28a745; }
+    </style>
+</head>
+<body>
+
+    <h1>Model Fit: The "Goldilocks" Problem</h1>
+    <p class="main-subtitle">The goal of training is to create a model that learns the true patterns in the data, but ignores the random noise. This is a balancing act: the model can't be too simple (underfitting) or too complex (overfitting).</p>
+
+    <div class="main-container">
+        <canvas id="fitCanvas" width="750" height="400"></canvas>
+        <div class="controls">
+            <button id="underfitBtn">😴 Show Underfitting</button>
+            <button id="goodFitBtn">✅ Show Good Fit</button>
+            <button id="overfitBtn">🤯 Show Overfitting</button>
+        </div>
+        <div id="descriptionBox">
+            <h3>Select a model fit to learn more</h3>
+            <p>Click one of the buttons above to see how different models try to understand the data points.</p>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('fitCanvas');
+        const ctx = canvas.getContext('2d');
+        const descriptionBox = document.getElementById('descriptionBox');
+
+        const underfitBtn = document.getElementById('underfitBtn');
+        const goodFitBtn = document.getElementById('goodFitBtn');
+        const overfitBtn = document.getElementById('overfitBtn');
+        
+        const dataPoints = [];
+        const numPoints = 20;
+
+        // Generate data points with a clear pattern and some noise
+        function generateData() {
+            dataPoints.length = 0; // Clear existing points
+            for (let i = 0; i < numPoints; i++) {
+                const x = (canvas.width / numPoints) * (i + 0.5);
+                const y_base = canvas.height / 2 - Math.sin(i / 2) * 100;
+                const noise = (Math.random() - 0.5) * 80;
+                dataPoints.push({ x: x, y: y_base + noise });
+            }
+        }
+
+        function drawPoints() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            dataPoints.forEach(p => {
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, 5, 0, Math.PI * 2);
+                ctx.fillStyle = 'rgba(0, 123, 255, 0.7)';
+                ctx.fill();
+            });
+        }
+
+        function updateDescription(color, content) {
+            descriptionBox.style.borderColor = color;
+            descriptionBox.innerHTML = content;
+        }
+
+        // --- Drawing Functions ---
+
+        function drawUnderfitLine() {
+            drawPoints();
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height / 2);
+            ctx.lineTo(canvas.width, canvas.height / 2);
+            ctx.strokeStyle = '#ffc107';
+            ctx.lineWidth = 4;
+            ctx.stroke();
+            const content = `
+                <h3>😴 Underfitting: Too Simple</h3>
+                <p>The model is not complex enough to capture the underlying trend. It's like trying to summarize a whole book with a single word.</p>
+                <h4>When is it seen?</h4>
+                <p>Usually at the start of development, with a very basic model or if training is stopped too early.</p>
+                <h4>Pros & Cons</h4>
+                <ul>
+                    <li class="pros"><strong>Pro:</strong> Very fast to train.</li>
+                    <li class="cons"><strong>Con:</strong> Fails to make accurate predictions on <em>any</em> data (training or test). It's not a useful model.</li>
+                </ul>
+            `;
+            updateDescription('#ffc107', content);
+        }
+
+        function drawGoodFitLine() {
+            drawPoints();
+            ctx.beginPath();
+            ctx.moveTo(dataPoints[0].x, dataPoints[0].y);
+            ctx.strokeStyle = '#28a745';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < dataPoints.length - 1; i++) {
+                const x_mid = (dataPoints[i].x + dataPoints[i+1].x) / 2;
+                const y_base = canvas.height / 2 - Math.sin(i / 2) * 100;
+                const y_base_next = canvas.height / 2 - Math.sin((i+1) / 2) * 100;
+                const y_mid = (y_base + y_base_next) / 2;
+                ctx.quadraticCurveTo(dataPoints[i].x, y_base, x_mid, y_mid);
+            }
+            ctx.stroke();
+            const content = `
+                <h3>✅ Good Fit: Just Right</h3>
+                <p>The model is complex enough to learn the true pattern, but simple enough to ignore the random noise. This is our goal.</p>
+                <h4>When is it seen?</h4>
+                <p>This is the desired outcome of the model tuning phase, achieved by using the validation set to find the perfect balance.</p>
+                <h4>Pros & Cons</h4>
+                <ul>
+                    <li class="pros"><strong>Pro:</strong> Performs well on new, unseen data (it generalizes). This model is reliable.</li>
+                    <li class="cons"><strong>Con:</strong> Can be difficult and time-consuming to find this perfect balance.</li>
+                </ul>
+            `;
+            updateDescription('#28a745', content);
+        }
+
+        function drawOverfitLine() {
+            drawPoints();
+            ctx.beginPath();
+            ctx.moveTo(dataPoints[0].x, dataPoints[0].y);
+            ctx.strokeStyle = '#dc3545';
+            ctx.lineWidth = 4;
+            for (let i = 0; i < dataPoints.length - 1; i++) {
+                const x_mid = (dataPoints[i].x + dataPoints[i+1].x) / 2;
+                const y_mid = (dataPoints[i].y + dataPoints[i+1].y) / 2;
+                ctx.quadraticCurveTo(dataPoints[i].x, dataPoints[i].y, x_mid, y_mid);
+            }
+            ctx.lineTo(dataPoints[dataPoints.length-1].x, dataPoints[dataPoints.length-1].y);
+            ctx.stroke();
+            const content = `
+                <h3>🤯 Overfitting: Too Complex</h3>
+                <p>The model is too flexible and has started to "memorize" the training data, including its random noise, instead of the general trend.</p>
+                <h4>When is it seen?</h4>
+                <p>Happens with very complex models (e.g., deep neural networks) on small datasets, or if you train for too many cycles.</p>
+                <h4>Pros & Cons</h4>
+                <ul>
+                    <li class="pros"><strong>Pro:</strong> Gets a near-perfect score on the training data (this is deceptive!).</li>
+                    <li class="cons"><strong>Con:</strong> Fails badly on new, unseen data. The model is not trustworthy for real-world use.</li>
+                </ul>
+            `;
+            updateDescription('#dc3545', content);
+        }
+
+        // --- Event Listeners ---
+        underfitBtn.onclick = drawUnderfitLine;
+        goodFitBtn.onclick = drawGoodFitLine;
+        overfitBtn.onclick = drawOverfitLine;
+
+        // --- Initial Load ---
+        window.onload = () => {
+            generateData();
+            drawPoints();
+        };
+    </script>
+
+</body>
+</html>
