@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive LLM Prompt Flow</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .flow-stage {
+            background-color: #1f2937; /* gray-800 */
+            border: 1px solid #374151; /* gray-700 */
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            flex-grow: 1;
+            min-height: 200px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+        }
+        .stage-title {
+            font-weight: 600;
+            color: #9ca3af; /* gray-400 */
+            margin-bottom: 0.75rem;
+            font-size: 0.9rem;
+        }
+        .stage-content {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.5rem;
+            align-items: center;
+            justify-content: center;
+            min-height: 50px;
+            transition: all 0.5s ease;
+        }
+        .arrow {
+            font-size: 2rem;
+            color: #4b5563; /* gray-600 */
+            align-self: center;
+        }
+        .token {
+            background-color: #374151; /* gray-700 */
+            color: #d1d5db; /* gray-300 */
+            padding: 0.25rem 0.75rem;
+            border-radius: 0.375rem;
+            transition: all 0.5s ease;
+            opacity: 0;
+            transform: translateY(20px);
+        }
+        .vector {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 2px;
+            width: 24px;
+            height: 24px;
+            background-color: #4b5563;
+            padding: 2px;
+            border-radius: 4px;
+            transition: all 0.5s ease;
+            opacity: 0;
+            transform: scale(0.5);
+        }
+        .vector-cell {
+            width: 100%;
+            height: 100%;
+            border-radius: 2px;
+        }
+        .nn-box {
+            width: 100px;
+            height: 100px;
+            background: linear-gradient(145deg, #3b82f6, #9333ea);
+            border-radius: 0.5rem;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.5s ease;
+        }
+        .nn-box.processing {
+            animation: pulse 1.5s infinite;
+        }
+        @keyframes pulse {
+            0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(96, 165, 250, 0.7); }
+            50% { transform: scale(1.05); box-shadow: 0 0 10px 5px rgba(96, 165, 250, 0); }
+        }
+        .stage-explanation {
+            font-size: 0.8rem;
+            color: #6b7280; /* gray-500 */
+            margin-top: 1rem;
+            max-width: 200px;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">The Journey of a Prompt</h1>
+            <p class="text-gray-400 mt-2">From Your Words to the Model's Response</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-8 max-w-3xl mx-auto flex flex-col md:flex-row items-center justify-center gap-4">
+            <div id="prompt-input" class="w-full bg-gray-700 text-white border border-gray-600 rounded-lg px-4 py-2">How do you learn?</div>
+            <button id="process-button" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105 whitespace-nowrap">
+                Visualize Flow
+            </button>
+        </div>
+
+        <!-- Visualization Flow -->
+        <div class="flex flex-col md:flex-row items-stretch justify-center gap-4 md:gap-2">
+            <!-- 1. Prompt -->
+            <div class="flow-stage" id="stage-prompt">
+                <h3 class="stage-title">1. YOUR PROMPT</h3>
+                <div id="prompt-content" class="stage-content text-lg font-semibold"></div>
+                <p class="stage-explanation">The process starts with the raw text you provide.</p>
+            </div>
+            <div class="arrow hidden md:flex">→</div>
+
+            <!-- 2. Tokenization -->
+            <div class="flow-stage" id="stage-tokenizer">
+                <h3 class="stage-title">2. TOKENIZATION</h3>
+                <div id="tokenizer-content" class="stage-content"></div>
+                <p class="stage-explanation">The text is broken down into smaller pieces called tokens.</p>
+            </div>
+            <div class="arrow hidden md:flex">→</div>
+
+            <!-- 3. Embedding -->
+            <div class="flow-stage" id="stage-embedding">
+                <h3 class="stage-title">3. EMBEDDING</h3>
+                <div id="embedding-content" class="stage-content"></div>
+                <p class="stage-explanation">Each token is converted into a numerical vector that represents its meaning.</p>
+            </div>
+            <div class="arrow hidden md:flex">→</div>
+
+            <!-- 4. Neural Network -->
+            <div class="flow-stage" id="stage-nn">
+                <h3 class="stage-title">4. NEURAL NETWORK</h3>
+                <div id="nn-content" class="stage-content">
+                    <div class="nn-box">
+                        <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                    </div>
+                </div>
+                <p class="stage-explanation">The vectors are processed by the network (e.g., a Transformer) to understand context and relationships.</p>
+            </div>
+            <div class="arrow hidden md:flex">→</div>
+            
+            <!-- 5. Decoding -->
+            <div class="flow-stage" id="stage-decoding">
+                <h3 class="stage-title">5. DECODING</h3>
+                <div id="decoding-content" class="stage-content"></div>
+                <p class="stage-explanation">The network's output vectors are converted back into tokens.</p>
+            </div>
+            <div class="arrow hidden md:flex">→</div>
+
+            <!-- 6. Response -->
+            <div class="flow-stage" id="stage-response">
+                <h3 class="stage-title">6. FINAL RESPONSE</h3>
+                <div id="response-content" class="stage-content text-lg font-semibold"></div>
+                <p class="stage-explanation">The tokens are assembled into the final text response.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const promptInput = document.getElementById('prompt-input');
+            const processButton = document.getElementById('process-button');
+
+            const stages = {
+                prompt: document.getElementById('prompt-content'),
+                tokenizer: document.getElementById('tokenizer-content'),
+                embedding: document.getElementById('embedding-content'),
+                nn: document.getElementById('nn-content'),
+                decoding: document.getElementById('decoding-content'),
+                response: document.getElementById('response-content'),
+            };
+
+            const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
+
+            function clearStages() {
+                // This function clears the content of all stages.
+                for (const key in stages) {
+                    stages[key].innerHTML = '';
+                }
+            }
+            
+            function createVector() {
+                const vector = document.createElement('div');
+                vector.className = 'vector';
+                for (let i = 0; i < 9; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'vector-cell';
+                    // Using string concatenation instead of template literals to avoid potential parsing issues.
+                    const r = Math.floor(Math.random() * 155 + 100);
+                    const g = Math.floor(Math.random() * 155 + 100);
+                    const b = Math.floor(Math.random() * 155 + 100);
+                    cell.style.backgroundColor = 'rgba(' + r + ',' + g + ',' + b + ', 0.8)';
+                    vector.appendChild(cell);
+                }
+                return vector;
+            }
+
+            async function startFlow() {
+                processButton.disabled = true;
+                processButton.textContent = 'Processing...';
+                clearStages();
+                
+                // Restore the nn-box in its stage to ensure it's ready for the animation.
+                stages.nn.innerHTML = `<div class="nn-box"><svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 text-white opacity-75" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z" /></svg></div>`;
+                const nnBox = stages.nn.querySelector('.nn-box');
+                nnBox.classList.remove('processing');
+
+                await sleep(100);
+
+                // 1. Prompt
+                const promptText = promptInput.textContent || "How do you learn?";
+                stages.prompt.textContent = `"${promptText}"`;
+                await sleep(800);
+
+                // 2. Tokenization
+                const tokens = promptText.match(/\w+|[^\s\w]+|\s+/g) || [];
+                for (const tokenText of tokens) {
+                    if (tokenText.trim() === '') continue; // skip whitespace tokens
+                    const tokenEl = document.createElement('div');
+                    tokenEl.className = 'token';
+                    tokenEl.textContent = tokenText;
+                    stages.tokenizer.appendChild(tokenEl);
+                    await sleep(50);
+                    tokenEl.style.opacity = '1';
+                    tokenEl.style.transform = 'translateY(0)';
+                    await sleep(150);
+                }
+                await sleep(800);
+
+                // 3. Embedding
+                const tokenElements = stages.tokenizer.querySelectorAll('.token');
+                stages.embedding.style.minHeight = stages.tokenizer.offsetHeight + 'px';
+                for (let i = 0; i < tokenElements.length; i++) {
+                    const vectorEl = createVector();
+                    stages.embedding.appendChild(vectorEl);
+                    await sleep(50);
+                    vectorEl.style.opacity = '1';
+                    vectorEl.style.transform = 'scale(1)';
+                    await sleep(150);
+                }
+                await sleep(800);
+
+                // 4. Neural Network
+                stages.nn.innerHTML = ''; // Clear the box to make room for vectors
+                const incomingVectors = stages.embedding.querySelectorAll('.vector');
+                incomingVectors.forEach(v => stages.nn.appendChild(v.cloneNode(true)));
+                await sleep(100);
+                const nnVectors = stages.nn.querySelectorAll('.vector');
+                nnVectors.forEach(v => {
+                    v.style.transform = 'scale(0)';
+                    v.style.opacity = '0';
+                });
+                
+                await sleep(500); // Wait for vectors to fade out
+                stages.nn.innerHTML = ''; // Clear vectors
+                stages.nn.appendChild(nnBox); // Add the box back for processing animation
+                nnBox.classList.add('processing');
+                await sleep(2500); // Simulate processing time
+                nnBox.classList.remove('processing');
+                
+                // 5. Decoding
+                const responseTokens = ["I", "learn", "from", "data", "."];
+                for (const tokenText of responseTokens) {
+                    const vectorEl = createVector();
+                    vectorEl.style.opacity = '1';
+                    vectorEl.style.transform = 'scale(1)';
+                    stages.decoding.appendChild(vectorEl);
+                    await sleep(150);
+                    vectorEl.style.transition = 'all 0.3s ease';
+                    vectorEl.style.transform = 'scale(0)';
+                    
+                    const tokenEl = document.createElement('div');
+                    tokenEl.className = 'token';
+                    tokenEl.textContent = tokenText;
+                    stages.decoding.appendChild(tokenEl);
+                    setTimeout(() => {
+                        tokenEl.style.opacity = '1';
+                        tokenEl.style.transform = 'translateY(0)';
+                    }, 100);
+                    
+                    await sleep(200);
+                    vectorEl.remove();
+                }
+                await sleep(800);
+
+                // 6. Response
+                const decodedTokens = stages.decoding.querySelectorAll('.token');
+                let finalResponse = '';
+                for(let i=0; i<decodedTokens.length; i++) {
+                    const token = decodedTokens[i].textContent;
+                    // Simple logic to join words and punctuation
+                    if (token !== '.' && token !== ',' && i > 0) {
+                        finalResponse += ' ';
+                    }
+                    finalResponse += token;
+                    stages.response.textContent = `"${finalResponse}"`;
+                    await sleep(200);
+                }
+
+                processButton.disabled = false;
+                processButton.textContent = 'Visualize Flow';
+            }
+
+            processButton.addEventListener('click', startFlow);
+        });
+    </script>
+</body>
+</html>
