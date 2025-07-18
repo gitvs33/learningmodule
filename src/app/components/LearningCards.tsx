@@ -113,7 +113,9 @@ const LearningCards: React.FC<LearningCardsProps> = ({ search, setSearch }) => {
                   <path d="M9 7v6l2-1 2 1V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
                 </svg>
               </div>
-              <div className="font-extrabold text-xl text-blue-800 dark:text-blue-100 mb-2 text-center drop-shadow-lg">{file.replace(/\.html$/, "")}</div>
+              <div className="font-extrabold text-xl text-blue-800 dark:text-blue-100 mb-2 text-center drop-shadow-lg break-words whitespace-normal overflow-hidden">
+  {file.replace(/\.html$/, "")}
+</div>
               <div className="text-gray-600 dark:text-gray-300 text-sm text-center">Click to open this interactive module</div>
             </div>
           ))
