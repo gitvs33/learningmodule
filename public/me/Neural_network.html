@@ -68,8 +68,14 @@
             </div>
 
             <!-- Scene-specific Controls -->
-            <div id="controls-scene1" class="scene-controls absolute bottom-4 left-4 right-4 justify-center items-center gap-4 md:gap-8 p-3 bg-gray-900/70 rounded-xl border border-gray-700 flex-wrap">
-                <!-- Controls for Scene 1 will be dynamically generated here -->
+            <div id="controls-scene1" class="scene-controls absolute bottom-4 left-4 right-4 justify-center items-center gap-4 p-3 bg-gray-900/70 rounded-xl border border-gray-700 flex-wrap">
+                <div id="scene1-sliders" class="flex justify-center items-center gap-4 md:gap-8 flex-wrap">
+                    <!-- Sliders for Scene 1 will be dynamically generated here -->
+                </div>
+                <div class="flex gap-4 mt-2 md:mt-0">
+                    <button id="btn-test-scene1" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Test Decision</button>
+                    <button id="btn-reset-scene1" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+                </div>
             </div>
 
             <div id="controls-scene2" class="scene-controls absolute bottom-4 left-1/2 -translate-x-1/2 justify-center items-center gap-4">
@@ -121,8 +127,8 @@
     };
 
     function setupScene1Controls() {
-        const controlsContainer = controls.scene1;
-        controlsContainer.innerHTML = ''; // Clear previous controls
+        const slidersContainer = document.getElementById('scene1-sliders');
+        slidersContainer.innerHTML = ''; // Clear previous controls
         scene1State.inputs.forEach((input, i) => {
             const controlGroup = document.createElement('div');
             controlGroup.className = 'flex flex-col items-center text-xs md:text-sm';
@@ -144,19 +150,42 @@
             
             controlGroup.appendChild(label);
             controlGroup.appendChild(slider);
-            controlsContainer.appendChild(controlGroup);
+            slidersContainer.appendChild(controlGroup);
         });
+    }
+
+    function calculateScene1() {
+        let sum = scene1State.bias;
+        scene1State.inputs.forEach((input, i) => {
+            if (input.active) {
+                sum += 1 * scene1State.weights[i];
+            }
+        });
+        scene1State.neuron.activation = 1 / (1 + Math.exp(-sum)); // Sigmoid function
+        scene1State.output.active = scene1State.neuron.activation > 0.7;
+    }
+
+    function resetScene1() {
+        scene1State.inputs.forEach(input => input.active = false);
+        scene1State.weights = [0.5, 0.5, 0.5];
+        // Re-setup controls to reset slider positions
+        setupScene1Controls();
+        calculateScene1();
     }
 
     function initScene1() {
         infoTitle.textContent = '1. The Neuron: A Simple Calculator';
-        infoText.textContent = 'A neuron takes inputs, multiplies them by their "importance" (weights), and fires if the total is above a threshold. Click the input circles to toggle them. Use the sliders to see how changing weights affects the final decision.';
+        infoText.textContent = 'Toggle inputs and adjust weights, then click "Test Decision" to see the result. The neuron fires if the weighted sum of active inputs passes a threshold.';
         
         if (!scene1State.initialized) {
             setupScene1Controls();
+            document.getElementById('btn-test-scene1').onclick = calculateScene1;
+            document.getElementById('btn-reset-scene1').onclick = resetScene1;
             scene1State.initialized = true;
         }
         
+        calculateScene1(); // Initial calculation
+
         canvas.onclick = (e) => {
             if (currentScene !== 1) return;
             const rect = canvas.getBoundingClientRect();
@@ -189,16 +218,6 @@
         scene1State.output.x = w * 0.8;
         scene1State.output.y = h * 0.5;
         scene1State.output.radius = neuronRadius * 0.8;
-
-        // Calculation
-        let sum = scene1State.bias;
-        scene1State.inputs.forEach((input, i) => {
-            if (input.active) {
-                sum += 1 * scene1State.weights[i];
-            }
-        });
-        scene1State.neuron.activation = 1 / (1 + Math.exp(-sum)); // Sigmoid function
-        scene1State.output.active = scene1State.neuron.activation > 0.7;
 
         // Drawing
         ctx.clearRect(0, 0, w, h);
