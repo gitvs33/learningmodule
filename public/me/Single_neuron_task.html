@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>A Single Neuron's Task</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .neuron {
+            width: 150px;
+            height: 150px;
+            border-radius: 50%;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #1f2937; /* gray-800 */
+            color: white;
+            border: 3px solid #4b5563; /* gray-600 */
+            transition: all 0.3s ease;
+        }
+        .input-node {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: #374151; /* gray-700 */
+            border: 2px solid #4b5563;
+        }
+        .connection {
+            position: absolute;
+            stroke: #4b5563; /* gray-600 */
+            stroke-width: 2.5;
+            z-index: -1;
+        }
+        .weight-label {
+            position: absolute;
+            background-color: #111827; /* gray-900 */
+            color: #d1d5db; /* gray-300 */
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transform: translate(-50%, -50%);
+            border: 1px solid #4b5563;
+        }
+        .control-panel {
+            background-color: #1f2937;
+            padding: 1.5rem;
+            border-radius: 0.75rem;
+            border: 1px solid #374151;
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">How a Single Neuron Completes Its Task</h1>
+            <p class="text-gray-400 mt-2">Adjust the inputs, weights, and bias to see how a neuron computes its output.</p>
+        </header>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-center">
+            
+            <!-- Controls -->
+            <div class="control-panel lg:col-span-1 order-2 lg:order-1">
+                <h3 class="text-xl font-bold mb-4 text-white">Controls</h3>
+                <div class="space-y-4">
+                    <!-- Input 1 -->
+                    <div>
+                        <label for="input1-slider" class="block mb-1 text-sm font-medium text-gray-300">Input 1 Value: <span id="input1-value" class="font-bold text-white">1.0</span></label>
+                        <input id="input1-slider" type="range" min="-2" max="2" step="0.1" value="1" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <!-- Weight 1 -->
+                    <div>
+                        <label for="weight1-slider" class="block mb-1 text-sm font-medium text-gray-300">Weight 1 (w1): <span id="weight1-value" class="font-bold text-white">0.5</span></label>
+                        <input id="weight1-slider" type="range" min="-1" max="1" step="0.05" value="0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                     <!-- Input 2 -->
+                    <div>
+                        <label for="input2-slider" class="block mb-1 text-sm font-medium text-gray-300">Input 2 Value: <span id="input2-value" class="font-bold text-white">-0.5</span></label>
+                        <input id="input2-slider" type="range" min="-2" max="2" step="0.1" value="-0.5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <!-- Weight 2 -->
+                    <div>
+                        <label for="weight2-slider" class="block mb-1 text-sm font-medium text-gray-300">Weight 2 (w2): <span id="weight2-value" class="font-bold text-white">0.8</span></label>
+                        <input id="weight2-slider" type="range" min="-1" max="1" step="0.05" value="0.8" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                    <!-- Bias -->
+                    <div>
+                        <label for="bias-slider" class="block mb-1 text-sm font-medium text-gray-300">Neuron Bias (b): <span id="bias-value" class="font-bold text-white">0.2</span></label>
+                        <input id="bias-slider" type="range" min="-1" max="1" step="0.05" value="0.2" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+                    </div>
+                </div>
+            </div>
+
+            <!-- Visualization -->
+            <div class="relative h-96 w-full lg:col-span-2 order-1 lg:order-2" id="viz-container">
+                <svg id="svg-connections" class="absolute top-0 left-0 w-full h-full"></svg>
+                
+                <div class="absolute top-1/2 -translate-y-1/2 w-full flex justify-between items-center">
+                    <!-- Inputs -->
+                    <div class="flex flex-col gap-16">
+                        <div id="input1-node" class="input-node font-bold">1.0</div>
+                        <div id="input2-node" class="input-node font-bold">-0.5</div>
+                    </div>
+
+                    <!-- Neuron -->
+                    <div id="main-neuron" class="neuron">
+                        <div class="text-center">
+                            <span class="text-sm text-gray-400">Sum (z)</span>
+                            <div id="sum-value" class="text-2xl font-bold">0.30</div>
+                        </div>
+                        <div class="w-2/3 h-px bg-gray-600 my-2"></div>
+                        <div class="text-center">
+                            <span class="text-sm text-green-400">Activation σ(z)</span>
+                            <div id="activation-value" class="text-2xl font-bold text-green-300">0.574</div>
+                        </div>
+                    </div>
+
+                    <!-- Output -->
+                    <div class="flex flex-col items-center">
+                         <span class="text-lg font-semibold text-gray-300 mb-2">Final Output</span>
+                         <div id="output-node" class="input-node bg-green-500 border-green-400 font-bold text-black">0.574</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation Sections -->
+        <div class="mt-8 space-y-6 max-w-4xl mx-auto">
+            <div class="control-panel">
+                <h3 class="text-xl font-bold mb-3 text-white">The Two-Step Process of a Neuron</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6 text-gray-300">
+                    <div>
+                        <h4 class="font-semibold text-lg text-blue-400 mb-2">Step 1: Summation</h4>
+                        <p class="text-sm">The neuron gathers all incoming signals. Each input value is multiplied by its connection's weight. All these weighted values are added together, along with the neuron's internal bias.</p>
+                        <p class="text-sm bg-gray-800 p-3 rounded-md mt-2 font-mono">Sum = (Input1 × w1) + (Input2 × w2) + bias</p>
+                        <p id="sum-equation" class="text-sm bg-gray-800 p-3 rounded-md mt-2 font-mono"></p>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-lg text-green-400 mb-2">Step 2: Activation</h4>
+                        <p class="text-sm">The calculated sum is then passed through an <strong class="text-white">Activation Function</strong> (here, we use the Sigmoid function, σ). This function squashes the sum into a value typically between 0 and 1, determining the neuron's final output signal. This output is what gets passed to the next layer.</p>
+                         <p class="text-sm bg-gray-800 p-3 rounded-md mt-2 font-mono">Output = σ(Sum)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- New Explanation Section -->
+            <div class="control-panel">
+                <h3 class="text-xl font-bold mb-3 text-white">The Logic of the Controls</h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4 text-gray-300">
+                    <div>
+                        <h4 class="font-semibold text-lg text-purple-400 mb-2">Weights 🎛️</h4>
+                        <p class="text-sm">Weights represent the <strong class="text-white">importance</strong> or <strong class="text-white">influence</strong> of an input. They are the primary values the network 'learns' during training.</p>
+                        <ul class="text-sm list-disc list-inside mt-2 space-y-1">
+                            <li>A <strong class="text-green-400">large positive weight</strong> means the input strongly encourages the neuron to activate (fire).</li>
+                            <li>A <strong class="text-red-400">large negative weight</strong> means the input strongly discourages the neuron from activating.</li>
+                            <li>A weight near <strong class="text-gray-400">zero</strong> means the input has little effect.</li>
+                        </ul>
+                    </div>
+                    <div>
+                        <h4 class="font-semibold text-lg text-yellow-400 mb-2">Bias 🎯</h4>
+                        <p class="text-sm">The bias provides a <strong class="text-white">baseline threshold</strong> for activation, allowing the neuron to fire even if all inputs are zero. It gives the network more flexibility.</p>
+                        <ul class="text-sm list-disc list-inside mt-2 space-y-1">
+                             <li>A <strong class="text-green-400">positive bias</strong> makes it easier for the neuron to activate.</li>
+                             <li>A <strong class="text-red-400">negative bias</strong> makes it harder for the neuron to activate.</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM ELEMENTS ---
+            const sliders = {
+                input1: document.getElementById('input1-slider'),
+                weight1: document.getElementById('weight1-slider'),
+                input2: document.getElementById('input2-slider'),
+                weight2: document.getElementById('weight2-slider'),
+                bias: document.getElementById('bias-slider'),
+            };
+            const values = {
+                input1: document.getElementById('input1-value'),
+                weight1: document.getElementById('weight1-value'),
+                input2: document.getElementById('input2-value'),
+                weight2: document.getElementById('weight2-value'),
+                bias: document.getElementById('bias-value'),
+            };
+            const nodes = {
+                input1: document.getElementById('input1-node'),
+                input2: document.getElementById('input2-node'),
+                main: document.getElementById('main-neuron'),
+                output: document.getElementById('output-node'),
+            };
+            const display = {
+                sum: document.getElementById('sum-value'),
+                activation: document.getElementById('activation-value'),
+                sumEq: document.getElementById('sum-equation'),
+            };
+            const vizContainer = document.getElementById('viz-container');
+            const svg = document.getElementById('svg-connections');
+
+            // --- STATE ---
+            let state = {
+                input1: 1.0, weight1: 0.5,
+                input2: -0.5, weight2: 0.8,
+                bias: 0.2
+            };
+
+            // --- ACTIVATION FUNCTION ---
+            const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+
+            // --- LOGIC ---
+            function calculate() {
+                // Step 1: Summation
+                const sum = (state.input1 * state.weight1) + (state.input2 * state.weight2) + state.bias;
+                
+                // Step 2: Activation
+                const activation = sigmoid(sum);
+
+                updateUI(sum, activation);
+            }
+
+            // --- UI & VISUALIZATION ---
+            function updateUI(sum, activation) {
+                // Update slider labels
+                for (const key in values) {
+                    values[key].textContent = state[key].toFixed(2);
+                }
+                // Update node values
+                nodes.input1.textContent = state.input1.toFixed(1);
+                nodes.input2.textContent = state.input2.toFixed(1);
+                nodes.output.textContent = activation.toFixed(3);
+                
+                // Update neuron display
+                display.sum.textContent = sum.toFixed(3);
+                display.activation.textContent = activation.toFixed(3);
+
+                // Update equation display
+                display.sumEq.textContent = `${sum.toFixed(3)} = (${state.input1.toFixed(1)} × ${state.weight1.toFixed(2)}) + (${state.input2.toFixed(1)} × ${state.weight2.toFixed(2)}) + ${state.bias.toFixed(2)}`;
+
+                // Update neuron color based on activation
+                const activationColor = Math.round(activation * 255);
+                nodes.main.style.borderColor = `rgb(${255 - activationColor}, ${165 + activationColor/3}, ${100})`;
+            }
+
+            function drawConnections() {
+                svg.innerHTML = ''; // Clear existing lines
+                
+                const mainPos = getElementCenter(nodes.main, vizContainer);
+                const outputPos = getElementCenter(nodes.output, vizContainer);
+                
+                // Connection from Input 1
+                const input1Pos = getElementCenter(nodes.input1, vizContainer);
+                const line1 = createLine(input1Pos.x, input1Pos.y, mainPos.x, mainPos.y);
+                svg.appendChild(line1);
+                createWeightLabel(
+                    (input1Pos.x + mainPos.x) / 2,
+                    (input1Pos.y + mainPos.y) / 2 - 10,
+                    `w1: ${state.weight1.toFixed(2)}`
+                );
+
+                // Connection from Input 2
+                const input2Pos = getElementCenter(nodes.input2, vizContainer);
+                const line2 = createLine(input2Pos.x, input2Pos.y, mainPos.x, mainPos.y);
+                svg.appendChild(line2);
+                createWeightLabel(
+                    (input2Pos.x + mainPos.x) / 2,
+                    (input2Pos.y + mainPos.y) / 2 + 10,
+                    `w2: ${state.weight2.toFixed(2)}`
+                );
+
+                // Connection to Output
+                const lineOut = createLine(mainPos.x, mainPos.y, outputPos.x, outputPos.y);
+                svg.appendChild(lineOut);
+            }
+
+            function getElementCenter(el, container) {
+                const rect = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                return {
+                    x: rect.left - containerRect.left + rect.width / 2,
+                    y: rect.top - containerRect.top + rect.height / 2
+                };
+            }
+
+            function createLine(x1, y1, x2, y2) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.classList.add('connection');
+                return line;
+            }
+            
+            function createWeightLabel(x, y, text) {
+                // Clear old labels before drawing new ones
+                const oldLabels = vizContainer.querySelectorAll('.weight-label');
+                oldLabels.forEach(label => label.remove());
+
+                // Function to create new labels
+                const createLabel = (lx, ly, ltext) => {
+                    const label = document.createElement('div');
+                    label.classList.add('weight-label');
+                    label.style.left = `${lx}px`;
+                    label.style.top = `${ly}px`;
+                    label.textContent = ltext;
+                    vizContainer.appendChild(label);
+                };
+                
+                const mainPos = getElementCenter(nodes.main, vizContainer);
+                const input1Pos = getElementCenter(nodes.input1, vizContainer);
+                const input2Pos = getElementCenter(nodes.input2, vizContainer);
+                
+                createLabel((input1Pos.x + mainPos.x) / 2, (input1Pos.y + mainPos.y) / 2, `w1: ${state.weight1.toFixed(2)}`);
+                createLabel((input2Pos.x + mainPos.x) / 2, (input2Pos.y + mainPos.y) / 2, `w2: ${state.weight2.toFixed(2)}`);
+            }
+
+            // --- EVENT LISTENERS ---
+            for (const key in sliders) {
+                sliders[key].addEventListener('input', (e) => {
+                    state[key] = parseFloat(e.target.value);
+                    calculate();
+                    drawConnections(); // Redraw connections and labels
+                });
+            }
+            
+            window.addEventListener('resize', drawConnections);
+
+            // --- INITIALIZATION ---
+            calculate();
+            drawConnections();
+        });
+    </script>
+</body>
+</html>
