@@ -3,567 +3,398 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Interactive Neural Network Tutorial</title>
+    <title>Interactive Neural Network</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body {
             font-family: 'Inter', sans-serif;
-            overscroll-behavior: none;
         }
-        .scene-controls {
-            display: none;
-        }
-        .scene-controls.active {
+        .neuron {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
             display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            background-color: #2d3748; /* gray-800 */
+            color: white;
+            font-weight: 600;
+            font-size: 1rem;
+            border: 2px solid #4a5568; /* gray-600 */
+            transition: all 0.3s ease;
         }
-        .info-panel {
-            backdrop-filter: blur(10px);
-            -webkit-backdrop-filter: blur(10px);
+        .neuron-label {
+            position: absolute;
+            top: -25px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #a0aec0; /* gray-400 */
+            white-space: nowrap;
         }
-        canvas {
-            touch-action: none;
+        .neuron-value {
+            font-size: 0.75rem;
+            position: absolute;
+            bottom: -20px;
+            color: #cbd5e0; /* gray-300 */
+            background-color: #1a202c;
+            padding: 1px 4px;
+            border-radius: 4px;
         }
-        input[type="range"]::-webkit-slider-thumb {
-            -webkit-appearance: none;
-            appearance: none;
-            width: 20px;
-            height: 20px;
-            background: #4F46E5;
-            cursor: pointer;
-            border-radius: 50%;
-            border: 2px solid white;
+        .connection {
+            position: absolute;
+            stroke: #4a5568; /* gray-600 */
+            stroke-width: 2;
+            transition: stroke 0.3s ease;
         }
-        input[type="range"]::-moz-range-thumb {
-            width: 20px;
-            height: 20px;
-            background: #4F46E5;
-            cursor: pointer;
-            border-radius: 50%;
-            border: 2px solid white;
+        .weight-label {
+            position: absolute;
+            background-color: #1a202c; /* gray-900 */
+            color: #e2e8f0; /* gray-200 */
+            padding: 2px 6px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            font-weight: 500;
+            transform: translate(-50%, -50%);
+            transition: all 0.3s ease;
+            border: 1px solid #4a5568;
+        }
+        .highlight-line {
+            stroke: #4299e1; /* blue-400 */
+        }
+        .highlight-neuron {
+            border-color: #4299e1; /* blue-400 */
+            transform: scale(1.1);
+        }
+        .highlight-weight {
+            background-color: #4299e1; /* blue-400 */
+            color: #1a202c; /* gray-900 */
+            transform: translate(-50%, -50%) scale(1.1);
+        }
+        .explanation-card {
+            background-color: #2d3748; /* gray-800 */
+            border-radius: 0.5rem;
+            padding: 1.5rem;
+            border: 1px solid #4a5568; /* gray-700 */
         }
     </style>
 </head>
-<body class="bg-gray-900 text-white flex flex-col items-center justify-center min-h-screen p-4 overflow-hidden">
+<body class="bg-gray-900 text-gray-200">
 
-    <div class="w-full max-w-5xl mx-auto bg-gray-800 rounded-2xl shadow-2xl flex flex-col">
-        <!-- Header & Navigation -->
-        <header class="bg-gray-900/50 p-4 rounded-t-2xl border-b border-gray-700">
-            <h1 class="text-xl md:text-2xl font-bold text-center text-indigo-300">Neural Network Interactive Tutorial</h1>
-            <div class="flex justify-center space-x-2 mt-3">
-                <button id="btn-scene1" class="px-4 py-2 text-sm font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">1. The Neuron</button>
-                <button id="btn-scene2" class="px-4 py-2 text-sm font-semibold bg-gray-700 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition">2. Learning</button>
-                <button id="btn-scene3" class="px-4 py-2 text-sm font-semibold bg-gray-700 rounded-lg shadow-md hover:bg-gray-600 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-opacity-75 transition">3. Problems</button>
-            </div>
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">Interactive Neural Network Visualizer</h1>
+            <p class="text-gray-400 mt-2">Simulating how a network learns to predict if a student will pass.</p>
         </header>
 
-        <!-- Main Content Area -->
-        <div class="relative w-full aspect-[16/9]">
-            <canvas id="nn-canvas" class="absolute top-0 left-0 w-full h-full bg-gray-800"></canvas>
-            
-            <!-- Information Panel -->
-            <div id="info-panel" class="info-panel absolute top-4 left-4 max-w-xs p-4 bg-gray-900/70 rounded-xl border border-gray-700 shadow-lg">
-                <h3 id="info-title" class="font-bold text-lg text-indigo-300 mb-2"></h3>
-                <p id="info-text" class="text-sm text-gray-300"></p>
+        <!-- Controls -->
+        <div class="bg-gray-800 p-4 rounded-lg mb-8 max-w-2xl mx-auto flex flex-col md:flex-row items-center justify-center gap-6">
+            <div class="w-full md:w-1/2">
+                <label for="input-slider" class="block mb-2 font-medium text-gray-300">Hours Studied: <span id="slider-value" class="font-bold text-white">5</span></label>
+                <input id="input-slider" type="range" min="0" max="10" step="0.1" value="5" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
             </div>
+            <button id="train-button" class="w-full md:w-auto bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-lg transition-transform transform hover:scale-105">
+                Train Network (1 Step)
+            </button>
+        </div>
 
-            <!-- Scene-specific Controls -->
-            <div id="controls-scene1" class="scene-controls absolute bottom-4 left-4 right-4 justify-center items-center gap-4 p-3 bg-gray-900/70 rounded-xl border border-gray-700 flex-wrap">
-                <div id="scene1-sliders" class="flex justify-center items-center gap-4 md:gap-8 flex-wrap">
-                    <!-- Sliders for Scene 1 will be dynamically generated here -->
+        <!-- Visualization -->
+        <div class="relative h-96 w-full max-w-4xl mx-auto mb-12" id="viz-container">
+            <!-- SVG for connections -->
+            <svg id="svg-connections" class="absolute top-0 left-0 w-full h-full overflow-visible z-0"></svg>
+
+            <!-- Layers -->
+            <div class="absolute w-full h-full flex justify-between items-center z-10">
+                <!-- Input Layer -->
+                <div id="input-layer" class="flex flex-col items-center">
+                    <h3 class="font-semibold text-lg mb-4 text-gray-300">Input</h3>
+                    <div id="input-neuron" class="neuron">
+                        <span class="neuron-label">Hours</span>
+                        <span id="input-neuron-value">5.0</span>
+                    </div>
                 </div>
-                <div class="flex gap-4 mt-2 md:mt-0">
-                    <button id="btn-test-scene1" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Test Decision</button>
-                    <button id="btn-reset-scene1" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+
+                <!-- Hidden Layer -->
+                <div id="hidden-layer" class="flex flex-col items-center">
+                    <h3 class="font-semibold text-lg mb-4 text-gray-300">Hidden Layer</h3>
+                    <div id="hidden-neuron" class="neuron">
+                        <span class="neuron-label">Activation</span>
+                        <span id="hidden-neuron-value">?</span>
+                        <span class="neuron-value" id="hidden-calc-value"></span>
+                    </div>
+                </div>
+
+                <!-- Output Layer -->
+                <div id="output-layer" class="flex flex-col items-center">
+                    <h3 class="font-semibold text-lg mb-4 text-gray-300">Output</h3>
+                    <div id="output-neuron" class="neuron">
+                         <span class="neuron-label">Pass Prob.</span>
+                        <span id="output-neuron-value">?</span>
+                        <span class="neuron-value" id="output-calc-value"></span>
+                    </div>
                 </div>
             </div>
+        </div>
 
-            <div id="controls-scene2" class="scene-controls absolute bottom-4 left-1/2 -translate-x-1/2 justify-center items-center gap-4">
-                <button id="btn-add-dot" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Challenge Me!</button>
-                 <button id="btn-reset-scene2" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+        <!-- Results -->
+        <div class="max-w-2xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-4 text-center mb-12">
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-400">Predicted Output</h4>
+                <p id="prediction-value" class="text-2xl font-bold text-white">?</p>
             </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-400">Actual Target</h4>
+                <p id="target-value" class="text-2xl font-bold text-white">1.0</p>
+            </div>
+            <div class="bg-gray-800 p-4 rounded-lg">
+                <h4 class="font-semibold text-gray-400">Loss (Error)</h4>
+                <p id="loss-value" class="text-2xl font-bold text-red-400">?</p>
+            </div>
+        </div>
 
-            <div id="controls-scene3" class="scene-controls absolute bottom-4 left-1/2 -translate-x-1/2 justify-center items-center gap-4">
-                <button id="btn-train-overfit" class="px-5 py-3 font-semibold bg-indigo-600 rounded-lg shadow-md hover:bg-indigo-500 focus:outline-none focus:ring-2 focus:ring-indigo-400 focus:ring-opacity-75 transition">Train Model</button>
-                <button id="btn-test-overfit" class="px-5 py-3 font-semibold bg-teal-600 rounded-lg shadow-md hover:bg-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-400 focus:ring-opacity-75 transition" disabled>Test on New Data</button>
-                <button id="btn-reset-scene3" class="px-5 py-3 font-semibold bg-rose-600 rounded-lg shadow-md hover:bg-rose-500 focus:outline-none focus:ring-2 focus:ring-rose-400 focus:ring-opacity-75 transition">Reset</button>
+        <!-- Explanations -->
+        <div class="max-w-4xl mx-auto space-y-6">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <div class="explanation-card">
+                    <h3 class="text-xl font-bold mb-3 text-white">What a Neural Network Is: The Structure ⚙️</h3>
+                    <p class="text-gray-300 mb-2">A network is built from simple, interconnected units organized in layers.</p>
+                    <ul class="space-y-4 text-sm">
+                        <li><strong class="text-blue-400">Neurons:</strong> The core units. A neuron takes in weighted inputs, adds a bias, and uses an 'activation function' (here, Sigmoid) to produce an output. In the visualization, each circle is a neuron.</li>
+                        <li><strong class="text-blue-400">Layers:</strong> Neurons are grouped into layers. Data flows from the input layer, through the hidden layers (where most computation happens), to the output layer, which gives the final prediction.</li>
+                        <li><strong class="text-blue-400">Weights & Biases:</strong> The learnable parameters. <strong class="text-white">Weights (w)</strong> on the connection lines determine how much influence one neuron has on the next. <strong class="text-white">Biases (b)</strong> are values inside a neuron that help it activate. The network learns by adjusting these values.</li>
+                    </ul>
+                </div>
+                <div class="explanation-card">
+                    <h3 class="text-xl font-bold mb-3 text-white">How a Neural Network Learns: The Engine 🧠</h3>
+                    <p class="text-gray-300 mb-2">The learning process, called 'training', is all about minimizing error.</p>
+                    <ul class="space-y-4 text-sm">
+                        <li><strong class="text-green-400">Forward Pass:</strong> When you change the input, data flows forward from left to right. This is the network making a prediction based on its current weights.</li>
+                        <li><strong class="text-green-400">Loss Function:</strong> After a prediction, we use a loss function (here, Mean Squared Error) to calculate a single number representing the error. A lower loss is better.</li>
+                        <li><strong class="text-green-400">Gradient Descent & Backpropagation:</strong> This is what happens when you click 'Train'. The network calculates the error's gradient (its slope) and works backward (Backpropagation) to see how much each weight and bias contributed to the error. It then 'descends' the gradient by nudging the weights and biases in the direction that reduces the error.</li>
+                    </ul>
+                </div>
+            </div>
+            <!-- New Explanation Card -->
+            <div class="explanation-card">
+                <h3 class="text-xl font-bold mb-3 text-white">Each Neuron Represents a Micro-Process 🔬</h3>
+                <p class="text-gray-300 mb-2">You can think of each neuron as being responsible for a single, very specific micro-process or calculation.</p>
+                <ul class="space-y-2 text-sm list-disc list-inside">
+                    <li>The <strong class="text-white">Hidden Neuron's</strong> process is: "Based on the hours studied, what's an intermediate feature I can create?" It weighs the input, adds a bias, and decides how strongly to 'fire'.</li>
+                    <li>The <strong class="text-white">Output Neuron's</strong> process is: "Given the feature from the hidden layer, what is the final probability of passing?"</li>
+                </ul>
+                <p class="text-gray-300 mt-4 text-sm">In larger networks (e.g., for image recognition), early neurons might process simple things like edges or colors. Later neurons combine these signals to recognize more complex patterns like eyes or faces. The network learns to orchestrate all these simple processes to solve the main problem.</p>
             </div>
         </div>
     </div>
 
-<script>
-    const canvas = document.getElementById('nn-canvas');
-    const ctx = canvas.getContext('2d');
-
-    // Control and Info Panel elements
-    const infoTitle = document.getElementById('info-title');
-    const infoText = document.getElementById('info-text');
-    const controls = {
-        scene1: document.getElementById('controls-scene1'),
-        scene2: document.getElementById('controls-scene2'),
-        scene3: document.getElementById('controls-scene3'),
-    };
-    const navButtons = {
-        scene1: document.getElementById('btn-scene1'),
-        scene2: document.getElementById('btn-scene2'),
-        scene3: document.getElementById('btn-scene3'),
-    };
-
-    let currentScene = 1;
-    let animationFrameId;
-
-    // --- Scene 1: The Neuron ---
-    const scene1State = {
-        inputs: [
-            { label: 'Sunny?', active: false, x: 0, y: 0, radius: 0 },
-            { label: 'Weekend?', active: false, x: 0, y: 0, radius: 0 },
-            { label: 'Rested?', active: false, x: 0, y: 0, radius: 0 },
-        ],
-        weights: [0.5, 0.5, 0.5],
-        bias: -0.7,
-        neuron: { x: 0, y: 0, radius: 0, activation: 0 },
-        output: { label: 'Go for a Run!', x: 0, y: 0, radius: 0, active: false },
-        initialized: false
-    };
-
-    function setupScene1Controls() {
-        const slidersContainer = document.getElementById('scene1-sliders');
-        slidersContainer.innerHTML = ''; // Clear previous controls
-        scene1State.inputs.forEach((input, i) => {
-            const controlGroup = document.createElement('div');
-            controlGroup.className = 'flex flex-col items-center text-xs md:text-sm';
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            // --- DOM ELEMENTS ---
+            const slider = document.getElementById('input-slider');
+            const sliderValue = document.getElementById('slider-value');
+            const trainButton = document.getElementById('train-button');
+            const vizContainer = document.getElementById('viz-container');
+            const svg = document.getElementById('svg-connections');
             
-            const label = document.createElement('label');
-            label.textContent = `${input.label} (Weight)`;
-            label.className = 'font-medium mb-1';
+            const inputNeuronEl = document.getElementById('input-neuron');
+            const hiddenNeuronEl = document.getElementById('hidden-neuron');
+            const outputNeuronEl = document.getElementById('output-neuron');
+
+            const inputNeuronValueEl = document.getElementById('input-neuron-value');
+            const hiddenNeuronValueEl = document.getElementById('hidden-neuron-value');
+            const outputNeuronValueEl = document.getElementById('output-neuron-value');
             
-            const slider = document.createElement('input');
-            slider.type = 'range';
-            slider.min = -1;
-            slider.max = 1;
-            slider.step = 0.1;
-            slider.value = scene1State.weights[i];
-            slider.className = 'w-24 md:w-32';
-            slider.oninput = (e) => {
-                scene1State.weights[i] = parseFloat(e.target.value);
+            const hiddenCalcValueEl = document.getElementById('hidden-calc-value');
+            const outputCalcValueEl = document.getElementById('output-calc-value');
+
+            const predictionValueEl = document.getElementById('prediction-value');
+            const targetValueEl = document.getElementById('target-value');
+            const lossValueEl = document.getElementById('loss-value');
+
+            // --- NEURAL NETWORK PARAMETERS ---
+            let nn = {
+                w1: 0.2,   // Weight: Input -> Hidden
+                b1: 0.1,   // Bias: Hidden
+                w2: -0.3,  // Weight: Hidden -> Output
+                b2: 0.4    // Bias: Output
             };
             
-            controlGroup.appendChild(label);
-            controlGroup.appendChild(slider);
-            slidersContainer.appendChild(controlGroup);
-        });
-    }
+            let state = {
+                input: 5.0,
+                target: 1.0,
+                learningRate: 0.1,
+                hidden_pre_activation: 0,
+                hidden_output: 0,
+                output_pre_activation: 0,
+                prediction: 0,
+                loss: 0
+            };
 
-    function calculateScene1() {
-        let sum = scene1State.bias;
-        scene1State.inputs.forEach((input, i) => {
-            if (input.active) {
-                sum += 1 * scene1State.weights[i];
+            // --- ACTIVATION FUNCTION ---
+            const sigmoid = (x) => 1 / (1 + Math.exp(-x));
+            const sigmoid_derivative = (x) => x * (1 - x);
+
+            // --- UI & VISUALIZATION FUNCTIONS ---
+            let w1Label, w2Label, line1, line2;
+
+            function createConnections() {
+                const inputPos = getElementCenter(inputNeuronEl, vizContainer);
+                const hiddenPos = getElementCenter(hiddenNeuronEl, vizContainer);
+                const outputPos = getElementCenter(outputNeuronEl, vizContainer);
+
+                // Line 1: Input -> Hidden
+                line1 = createLine(inputPos.x, inputPos.y, hiddenPos.x, hiddenPos.y);
+                svg.appendChild(line1);
+                w1Label = createWeightLabel(
+                    (inputPos.x + hiddenPos.x) / 2,
+                    (inputPos.y + hiddenPos.y) / 2,
+                    `w1: ${nn.w1.toFixed(3)}`
+                );
+                vizContainer.appendChild(w1Label);
+
+                // Line 2: Hidden -> Output
+                line2 = createLine(hiddenPos.x, hiddenPos.y, outputPos.x, outputPos.y);
+                svg.appendChild(line2);
+                w2Label = createWeightLabel(
+                    (hiddenPos.x + outputPos.x) / 2,
+                    (outputPos.y + outputPos.y) / 2,
+                    `w2: ${nn.w2.toFixed(3)}`
+                );
+                vizContainer.appendChild(w2Label);
             }
-        });
-        scene1State.neuron.activation = 1 / (1 + Math.exp(-sum)); // Sigmoid function
-        scene1State.output.active = scene1State.neuron.activation > 0.7;
-    }
-
-    function resetScene1() {
-        scene1State.inputs.forEach(input => input.active = false);
-        scene1State.weights = [0.5, 0.5, 0.5];
-        // Re-setup controls to reset slider positions
-        setupScene1Controls();
-        calculateScene1();
-    }
-
-    function initScene1() {
-        infoTitle.textContent = '1. The Neuron: A Simple Calculator';
-        infoText.textContent = 'Toggle inputs and adjust weights, then click "Test Decision" to see the result. The neuron fires if the weighted sum of active inputs passes a threshold.';
-        
-        if (!scene1State.initialized) {
-            setupScene1Controls();
-            document.getElementById('btn-test-scene1').onclick = calculateScene1;
-            document.getElementById('btn-reset-scene1').onclick = resetScene1;
-            scene1State.initialized = true;
-        }
-        
-        calculateScene1(); // Initial calculation
-
-        canvas.onclick = (e) => {
-            if (currentScene !== 1) return;
-            const rect = canvas.getBoundingClientRect();
-            const x = e.clientX - rect.left;
-            const y = e.clientY - rect.top;
-
-            scene1State.inputs.forEach(input => {
-                const dist = Math.hypot(x - input.x, y - input.y);
-                if (dist < input.radius) {
-                    input.active = !input.active;
-                }
-            });
-        };
-    }
-
-    function drawScene1() {
-        const w = canvas.width;
-        const h = canvas.height;
-        const neuronRadius = Math.min(w, h) * 0.08;
-
-        // Position elements
-        scene1State.inputs.forEach((input, i) => {
-            input.x = w * 0.2;
-            input.y = h * (0.25 + i * 0.25);
-            input.radius = neuronRadius * 0.7;
-        });
-        scene1State.neuron.x = w * 0.5;
-        scene1State.neuron.y = h * 0.5;
-        scene1State.neuron.radius = neuronRadius;
-        scene1State.output.x = w * 0.8;
-        scene1State.output.y = h * 0.5;
-        scene1State.output.radius = neuronRadius * 0.8;
-
-        // Drawing
-        ctx.clearRect(0, 0, w, h);
-        
-        // Draw connections
-        scene1State.inputs.forEach((input, i) => {
-            ctx.beginPath();
-            ctx.moveTo(input.x, input.y);
-            ctx.lineTo(scene1State.neuron.x, scene1State.neuron.y);
-            ctx.strokeStyle = `rgba(255, 255, 255, ${0.1 + Math.abs(scene1State.weights[i]) * 0.9})`;
-            ctx.lineWidth = 1 + Math.abs(scene1State.weights[i]) * 8;
-            ctx.stroke();
-        });
-
-        ctx.beginPath();
-        ctx.moveTo(scene1State.neuron.x, scene1State.neuron.y);
-        ctx.lineTo(scene1State.output.x, scene1State.output.y);
-        ctx.strokeStyle = `rgba(167, 139, 250, ${scene1State.output.active ? 1 : 0.2})`;
-        ctx.lineWidth = 8;
-        ctx.stroke();
-
-        // Draw nodes
-        scene1State.inputs.forEach(input => {
-            ctx.beginPath();
-            ctx.arc(input.x, input.y, input.radius, 0, 2 * Math.PI);
-            ctx.fillStyle = input.active ? '#22C55E' : '#EF4444';
-            ctx.fill();
-            ctx.strokeStyle = '#9CA3AF';
-            ctx.lineWidth = 3;
-            ctx.stroke();
-            ctx.fillStyle = 'white';
-            ctx.font = `${neuronRadius*0.3}px Inter`;
-            ctx.textAlign = 'center';
-            ctx.textBaseline = 'middle';
-            ctx.fillText(input.label, input.x, input.y);
-        });
-
-        ctx.beginPath();
-        ctx.arc(scene1State.neuron.x, scene1State.neuron.y, scene1State.neuron.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = `rgba(139, 92, 246, ${0.2 + scene1State.neuron.activation * 0.8})`;
-        ctx.fill();
-        ctx.strokeStyle = '#A78BFA';
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        ctx.fillStyle = 'white';
-        ctx.font = `bold ${neuronRadius*0.3}px Inter`;
-        ctx.fillText('Decision', scene1State.neuron.x, scene1State.neuron.y - 15);
-        ctx.font = `${neuronRadius*0.25}px Inter`;
-        ctx.fillText(`Activation: ${scene1State.neuron.activation.toFixed(2)}`, scene1State.neuron.x, scene1State.neuron.y + 15);
-
-        ctx.beginPath();
-        ctx.arc(scene1State.output.x, scene1State.output.y, scene1State.output.radius, 0, 2 * Math.PI);
-        ctx.fillStyle = scene1State.output.active ? '#6EE7B7' : '#4B5563';
-        ctx.fill();
-        ctx.strokeStyle = scene1State.output.active ? '#34D399' : '#6B7280';
-        ctx.lineWidth = 4;
-        ctx.stroke();
-        ctx.fillStyle = scene1State.output.active ? 'black' : 'white';
-        ctx.font = `${neuronRadius*0.25}px Inter`;
-        ctx.fillText(scene1State.output.label, scene1State.output.x, scene1State.output.y);
-    }
-    
-    // --- Scene 2: Learning ---
-    const scene2State = {
-        points: [],
-        line: { m: 0.2, c: 0.4 }, // y = mx + c (in normalized 0-1 space)
-        targetLine: { m: 0.2, c: 0.4 },
-        learningRate: 0.1,
-        lastMessage: { text: '', x: 0, y: 0, alpha: 0 }
-    };
-
-    function initScene2() {
-        infoTitle.textContent = '2. How a Network Learns';
-        infoText.textContent = 'The network makes a guess using its "decision boundary" (the line). If it\'s wrong, it measures the error and nudges the line to be more accurate. Click "Challenge Me!" to add a point and see it learn.';
-        scene2State.points = [];
-        scene2State.line = { m: 0.2, c: 0.4 };
-        scene2State.targetLine = { m: 0.2, c: 0.4 };
-        document.getElementById('btn-add-dot').onclick = addDot;
-        document.getElementById('btn-reset-scene2').onclick = () => {
-             scene2State.points = [];
-             scene2State.line = { m: 0.2, c: 0.4 };
-             scene2State.targetLine = { m: 0.2, c: 0.4 };
-        };
-        canvas.onclick = null;
-    }
-
-    function addDot() {
-        const x = Math.random();
-        const y = Math.random();
-        const trueLabel = y > 0.7 * x + 0.15 ? 1 : -1; // The "ground truth" line
-        const point = { x, y, label: trueLabel };
-        scene2State.points.push(point);
-        learnFromPoint(point);
-    }
-
-    function learnFromPoint(point) {
-        const { m, c } = scene2State.line;
-        const prediction = point.y > m * point.x + c ? 1 : -1;
-        
-        const messageX = point.x * canvas.width;
-        const messageY = point.y * canvas.height - 30;
-
-        if (prediction !== point.label) {
-            // Misclassified, update line
-            const error = point.label - prediction;
-            scene2State.targetLine.m += scene2State.learningRate * error * point.x;
-            scene2State.targetLine.c += scene2State.learningRate * error;
-            scene2State.lastMessage = { text: 'Wrong! Adjusting...', x: messageX, y: messageY, alpha: 1.0, color: '#F87171' };
-        } else {
-            scene2State.lastMessage = { text: 'Correct!', x: messageX, y: messageY, alpha: 1.0, color: '#6EE7B7' };
-        }
-    }
-
-    function drawScene2() {
-        const w = canvas.width;
-        const h = canvas.height;
-
-        // Animate line towards target
-        scene2State.line.m += (scene2State.targetLine.m - scene2State.line.m) * 0.1;
-        scene2State.line.c += (scene2State.targetLine.c - scene2State.line.c) * 0.1;
-
-        // Fade out message
-        if (scene2State.lastMessage.alpha > 0) {
-            scene2State.lastMessage.alpha -= 0.01;
-        }
-
-        ctx.clearRect(0, 0, w, h);
-
-        // Draw decision boundary background
-        const { m, c } = scene2State.line;
-        ctx.fillStyle = 'rgba(99, 102, 241, 0.2)'; // Indigo zone
-        ctx.beginPath();
-        ctx.moveTo(0, c * h);
-        ctx.lineTo(w, (m * 1 + c) * h);
-        ctx.lineTo(w, 0);
-        ctx.lineTo(0, 0);
-        ctx.closePath();
-        ctx.fill();
-
-        ctx.fillStyle = 'rgba(249, 115, 22, 0.2)'; // Orange zone
-        ctx.beginPath();
-        ctx.moveTo(0, c * h);
-        ctx.lineTo(w, (m * 1 + c) * h);
-        ctx.lineTo(w, h);
-        ctx.lineTo(0, h);
-        ctx.closePath();
-        ctx.fill();
-
-        // Draw points
-        scene2State.points.forEach(p => {
-            ctx.beginPath();
-            ctx.arc(p.x * w, p.y * h, 8, 0, 2 * Math.PI);
-            ctx.fillStyle = p.label === 1 ? '#60A5FA' : '#FB923C';
-            ctx.fill();
-            ctx.strokeStyle = 'white';
-            ctx.lineWidth = 2;
-            ctx.stroke();
-        });
-
-        // Draw decision boundary line
-        ctx.beginPath();
-        ctx.moveTo(0, c * h);
-        ctx.lineTo(w, (m * 1 + c) * h);
-        ctx.strokeStyle = '#C4B5FD';
-        ctx.lineWidth = 4;
-        ctx.setLineDash([10, 10]);
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Draw last message
-        if(scene2State.lastMessage.alpha > 0) {
-            ctx.font = 'bold 20px Inter';
-            ctx.textAlign = 'center';
-            ctx.fillStyle = `rgba(${hexToRgb(scene2State.lastMessage.color)}, ${scene2State.lastMessage.alpha})`;
-            ctx.fillText(scene2State.lastMessage.text, scene2State.lastMessage.x, scene2State.lastMessage.y);
-        }
-    }
-
-    // --- Scene 3: Overfitting ---
-    const scene3State = {
-        trainingPoints: [],
-        testPoints: [],
-        boundary: [],
-        mode: 'initial', // 'initial', 'training', 'trained', 'testing'
-        trainProgress: 0,
-    };
-
-    function initScene3() {
-        infoTitle.textContent = '3. Problem: Overfitting';
-        infoText.textContent = 'A model "overfits" when it memorizes the training data instead of learning the general pattern. Click "Train Model" to see it create a perfect but overly complex boundary. Then, "Test" it on new data.';
-        resetScene3();
-        document.getElementById('btn-train-overfit').onclick = () => { scene3State.mode = 'training'; };
-        document.getElementById('btn-test-overfit').onclick = () => { scene3State.mode = 'testing'; };
-        document.getElementById('btn-reset-scene3').onclick = resetScene3;
-        canvas.onclick = null;
-    }
-    
-    function resetScene3() {
-        scene3State.mode = 'initial';
-        scene3State.trainProgress = 0;
-        document.getElementById('btn-train-overfit').disabled = false;
-        document.getElementById('btn-test-overfit').disabled = true;
-
-        // Generate fixed training points
-        scene3State.trainingPoints = [
-            {x: 0.15, y: 0.2, label: 1}, {x: 0.2, y: 0.35, label: 1}, {x: 0.3, y: 0.25, label: 1},
-            {x: 0.25, y: 0.8, label: -1}, {x: 0.35, y: 0.9, label: -1}, {x: 0.4, y: 0.75, label: -1},
-            {x: 0.6, y: 0.2, label: 1}, {x: 0.7, y: 0.3, label: 1}, {x: 0.8, y: 0.15, label: 1},
-            {x: 0.75, y: 0.85, label: -1}, {x: 0.85, y: 0.7, label: -1}, {x: 0.9, y: 0.9, label: -1},
-        ];
-        // Generate fixed test points
-        scene3State.testPoints = [
-            {x: 0.22, y: 0.28, label: 1}, {x: 0.33, y: 0.82, label: -1},
-            {x: 0.65, y: 0.25, label: 1}, {x: 0.8, y: 0.78, label: -1},
-        ];
-    }
-
-    function drawScene3() {
-        const w = canvas.width;
-        const h = canvas.height;
-        ctx.clearRect(0, 0, w, h);
-
-        if (scene3State.mode === 'training' && scene3State.trainProgress < 1) {
-            scene3State.trainProgress += 0.01;
-        }
-        if (scene3State.trainProgress >= 1 && scene3State.mode === 'training') {
-            scene3State.mode = 'trained';
-            document.getElementById('btn-train-overfit').disabled = true;
-            document.getElementById('btn-test-overfit').disabled = false;
-        }
-
-        // Draw points
-        scene3State.trainingPoints.forEach(p => drawPoint(p, w, h));
-        if (scene3State.mode === 'testing') {
-            scene3State.testPoints.forEach(p => drawPoint(p, w, h, true));
-        }
-
-        // Draw boundary
-        const simpleBoundary = (x) => 0.5; // A simple horizontal line
-        const complexBoundary = (x) => { // A wavy line that hits the points
-            if (x < 0.5) return 0.5 - Math.sin(x * Math.PI * 2) * 0.25;
-            return 0.5 + Math.sin(x * Math.PI * 2) * 0.25;
-        };
-
-        ctx.beginPath();
-        ctx.lineWidth = 4;
-        ctx.strokeStyle = '#C4B5FD';
-        ctx.setLineDash([10, 10]);
-
-        for (let x = 0; x <= 1; x += 0.01) {
-            const simpleY = simpleBoundary(x);
-            const complexY = complexBoundary(x);
-            const currentY = simpleY + (complexY - simpleY) * scene3State.trainProgress;
-            if (x === 0) {
-                ctx.moveTo(x * w, currentY * h);
-            } else {
-                ctx.lineTo(x * w, currentY * h);
+            
+            function getElementCenter(el, container) {
+                const rect = el.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                return {
+                    x: rect.left - containerRect.left + rect.width / 2,
+                    y: rect.top - containerRect.top + rect.height / 2
+                };
             }
-        }
-        ctx.stroke();
-        ctx.setLineDash([]);
-        
-        // Highlight misclassified test points
-        if (scene3State.mode === 'testing') {
-            scene3State.testPoints.forEach(p => {
-                const boundaryY = complexBoundary(p.x);
-                const prediction = p.y > boundaryY ? -1 : 1;
-                if (prediction !== p.label) {
-                    ctx.beginPath();
-                    ctx.arc(p.x * w, p.y * h, 20, 0, 2 * Math.PI);
-                    ctx.strokeStyle = '#F87171';
-                    ctx.lineWidth = 4;
-                    ctx.stroke();
-                }
+
+            function createLine(x1, y1, x2, y2) {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.classList.add('connection');
+                return line;
+            }
+
+            function createWeightLabel(x, y, text) {
+                const label = document.createElement('div');
+                label.classList.add('weight-label');
+                label.style.left = `${x}px`;
+                label.style.top = `${y}px`;
+                label.textContent = text;
+                return label;
+            }
+            
+            function updateUI() {
+                // Update slider value text
+                sliderValue.textContent = state.input.toFixed(1);
+                
+                // Update neuron values
+                inputNeuronValueEl.textContent = state.input.toFixed(1);
+                hiddenNeuronValueEl.textContent = state.hidden_output.toFixed(3);
+                outputNeuronValueEl.textContent = state.prediction.toFixed(3);
+
+                // Update calculation displays
+                hiddenCalcValueEl.textContent = `Σ = ${state.hidden_pre_activation.toFixed(2)}`;
+                outputCalcValueEl.textContent = `Σ = ${state.output_pre_activation.toFixed(2)}`;
+
+                // Update weight labels
+                w1Label.textContent = `w1: ${nn.w1.toFixed(3)}`;
+                w2Label.textContent = `w2: ${nn.w2.toFixed(3)}`;
+                
+                // Update results
+                predictionValueEl.textContent = state.prediction.toFixed(3);
+                targetValueEl.textContent = state.target.toFixed(1);
+                lossValueEl.textContent = state.loss.toFixed(4);
+            }
+            
+            // --- CORE LOGIC ---
+            function forwardPass() {
+                // Input to Hidden
+                state.hidden_pre_activation = (state.input * nn.w1) + nn.b1;
+                state.hidden_output = sigmoid(state.hidden_pre_activation);
+
+                // Hidden to Output
+                state.output_pre_activation = (state.hidden_output * nn.w2) + nn.b2;
+                state.prediction = sigmoid(state.output_pre_activation);
+                
+                calculateLoss();
+                updateUI();
+            }
+            
+            function calculateLoss() {
+                const error = state.target - state.prediction;
+                state.loss = Math.pow(error, 2); // Mean Squared Error
+            }
+            
+            function train() {
+                // --- Backpropagation ---
+                
+                // 1. Calculate gradient for the output layer
+                const error = state.target - state.prediction;
+                const d_prediction = error * 2; // Derivative of MSE
+                const d_output_pre_activation = sigmoid_derivative(state.prediction);
+                const output_delta = d_prediction * d_output_pre_activation;
+
+                // 2. Calculate gradient for the hidden layer
+                const error_hidden = output_delta * nn.w2;
+                const d_hidden_pre_activation = sigmoid_derivative(state.hidden_output);
+                const hidden_delta = error_hidden * d_hidden_pre_activation;
+
+                // --- Gradient Descent (Update Weights & Biases) ---
+                
+                // Update output layer weights and bias
+                nn.w2 += state.hidden_output * output_delta * state.learningRate;
+                nn.b2 += output_delta * state.learningRate;
+                
+                // Update hidden layer weights and bias
+                nn.w1 += state.input * hidden_delta * state.learningRate;
+                nn.b1 += hidden_delta * state.learningRate;
+                
+                // Run forward pass again to show the updated prediction
+                forwardPass();
+                
+                // Animate the training step
+                animateTraining();
+            }
+            
+            function animateTraining() {
+                const allElements = [inputNeuronEl, hiddenNeuronEl, outputNeuronEl, w1Label, w2Label];
+                const allLines = [line1, line2];
+                
+                // Flash highlight
+                allElements.forEach(el => el.classList.add('highlight-neuron'));
+                allLines.forEach(line => line.classList.add('highlight-line'));
+                w1Label.classList.add('highlight-weight');
+                w2Label.classList.add('highlight-weight');
+
+                setTimeout(() => {
+                    allElements.forEach(el => el.classList.remove('highlight-neuron'));
+                    allLines.forEach(line => line.classList.remove('highlight-line'));
+                    w1Label.classList.remove('highlight-weight');
+                    w2Label.classList.remove('highlight-weight');
+                }, 500);
+            }
+
+            // --- EVENT LISTENERS ---
+            slider.addEventListener('input', (e) => {
+                state.input = parseFloat(e.target.value);
+                forwardPass();
             });
-        }
-    }
+            
+            trainButton.addEventListener('click', train);
 
-    function drawPoint(p, w, h, isTest = false) {
-        ctx.beginPath();
-        ctx.arc(p.x * w, p.y * h, 8, 0, 2 * Math.PI);
-        ctx.globalAlpha = isTest ? 0.7 : 1.0;
-        ctx.fillStyle = p.label === 1 ? '#60A5FA' : '#FB923C';
-        ctx.fill();
-        ctx.strokeStyle = 'white';
-        ctx.lineWidth = isTest ? 1 : 2;
-        ctx.stroke();
-        ctx.globalAlpha = 1.0;
-    }
-
-
-    // --- Main Loop & Scene Management ---
-    function switchScene(sceneNum) {
-        currentScene = sceneNum;
-        cancelAnimationFrame(animationFrameId);
-
-        // Update nav button styles
-        Object.values(navButtons).forEach(btn => btn.classList.replace('bg-indigo-600', 'bg-gray-700'));
-        navButtons[`scene${sceneNum}`].classList.replace('bg-gray-700', 'bg-indigo-600');
-        
-        // Update visible controls
-        Object.values(controls).forEach(c => c.classList.remove('active'));
-        controls[`scene${sceneNum}`].classList.add('active');
-
-        if (sceneNum === 1) initScene1();
-        if (sceneNum === 2) initScene2();
-        if (sceneNum === 3) initScene3();
-
-        resizeCanvas(); // Ensure canvas is sized correctly for the new scene
-        gameLoop();
-    }
-
-    function gameLoop() {
-        if (currentScene === 1) drawScene1();
-        if (currentScene === 2) drawScene2();
-        if (currentScene === 3) drawScene3();
-        animationFrameId = requestAnimationFrame(gameLoop);
-    }
-
-    function resizeCanvas() {
-        const parent = canvas.parentElement;
-        canvas.width = parent.clientWidth;
-        canvas.height = parent.clientHeight;
-        // After resizing, we need to redraw the current scene
-        if (currentScene === 1) drawScene1();
-        if (currentScene === 2) drawScene2();
-        if (currentScene === 3) drawScene3();
-    }
-    
-    function hexToRgb(hex) {
-        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-        return result ? `${parseInt(result[1], 16)}, ${parseInt(result[2], 16)}, ${parseInt(result[3], 16)}` : '255, 255, 255';
-    }
-
-
-    // --- Event Listeners ---
-    navButtons.scene1.onclick = () => switchScene(1);
-    navButtons.scene2.onclick = () => switchScene(2);
-    navButtons.scene3.onclick = () => switchScene(3);
-
-    window.addEventListener('resize', resizeCanvas);
-
-    // --- Initial Load ---
-    switchScene(1);
-
-</script>
-
+            // --- INITIALIZATION ---
+            createConnections();
+            forwardPass();
+        });
+    </script>
 </body>
 </html>
