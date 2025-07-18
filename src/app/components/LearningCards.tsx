@@ -96,28 +96,25 @@ const LearningCards: React.FC<LearningCardsProps> = ({ search, setSearch }) => {
           </div>
         ) : (
           filteredFiles.map((file, idx) => (
-            <div
-              key={file}
-              className="group bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-blue-900 rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer border border-transparent hover:border-blue-500 hover:shadow-2xl transition-all duration-300 min-h-[200px] animate-fade-in scale-100 hover:scale-105 focus:scale-105 focus:outline-none focus:ring-2 focus:ring-blue-400"
-              style={{ animationDelay: `${idx * 80}ms` }}
-              onClick={() => window.open(`/modules/${file}`, "_blank")}
-              tabIndex={0}
-              role="button"
-              onKeyPress={e => { if (e.key === 'Enter') window.open(`/modules/${file}`, "_blank"); }}
-            >
-              <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 shadow-inner">
-                {/* Book with bookmark icon */}
-                <svg className="w-8 h-8 text-blue-500 dark:text-blue-300" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
-                  <rect x="4" y="4" width="16" height="16" rx="3" fill="currentColor" fillOpacity="0.15" />
-                  <rect x="7" y="7" width="10" height="10" rx="1.5" fill="#fff" />
-                  <path d="M9 7v6l2-1 2 1V7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-                </svg>
-              </div>
-              <div className="font-extrabold text-xl text-blue-800 dark:text-blue-100 mb-2 text-center drop-shadow-lg truncate overflow-hidden">
-  {file.replace(/\.html$/, "")}
+         <div
+  key={file}
+  className="group bg-gradient-to-br from-blue-50 to-blue-100 dark:from-gray-800 dark:to-blue-900 rounded-3xl shadow-xl p-8 flex flex-col items-center justify-center cursor-pointer border overflow-hidden"
+  style={{ animationDelay: `${idx * 80}ms` }}
+  onClick={() => window.open(`/modules/${file}`, "_blank")}
+  tabIndex={0}
+  role="button"
+  onKeyPress={e => { if (e.key === 'Enter') window.open(`/modules/${file}`, "_blank"); }}
+>
+  <div className="mb-4 flex items-center justify-center w-16 h-16 rounded-full bg-blue-100 dark:bg-blue-900 shadow-inner">
+    {/* Icon here */}
+  </div>
+  <div className="font-extrabold text-xl text-blue-800 dark:text-blue-100 mb-2 text-center drop-shadow-lg break-words whitespace-normal overflow-hidden line-clamp-2">
+    {file.replace(/\.html$/, "")}
+  </div>
+  <div className="text-gray-600 dark:text-gray-300 text-sm text-center break-words whitespace-normal overflow-hidden line-clamp-2">
+    Click to open this interactive module
+  </div>
 </div>
-              <div className="text-gray-600 dark:text-gray-300 text-sm text-center">Click to open this interactive module</div>
-            </div>
           ))
         )}
       </div>
