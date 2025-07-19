@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive PyTorch Tensor Explainer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .tensor-grid {
+            display: grid;
+            gap: 8px;
+            transition: all 0.3s ease-in-out;
+        }
+        .tensor-cell {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            border-radius: 4px;
+            font-size: 0.875rem;
+            min-height: 40px;
+            transition: all 0.3s ease-in-out;
+            background-color: #e2e8f0; /* slate-200 */
+            color: #1e293b; /* slate-800 */
+        }
+        .channel-btn.active {
+            background-color: #3b82f6; /* blue-500 */
+            color: white;
+            font-weight: 600;
+        }
+        .transform-arrow {
+            transition: transform 0.5s ease-in-out;
+        }
+        .fade-in {
+            animation: fadeIn 0.5s ease-in-out forwards;
+        }
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Understanding PyTorch Tensors</h1>
+            <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">PyTorch is the library; a <span class="font-semibold text-blue-600">Tensor</span> is its fundamental building block. Let's visualize them.</p>
+        </header>
+
+        <!-- Tensor Dimensions Section -->
+        <section class="mb-16">
+            <h2 class="text-3xl font-bold text-center mb-8">Tensors by Dimension</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+                
+                <!-- 0D Tensor (Scalar) -->
+                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <h3 class="text-xl font-semibold mb-2">0-D Tensor (Scalar)</h3>
+                    <p class="text-slate-600 mb-4 text-sm">A single number.</p>
+                    <div id="scalar-container" class="font-mono text-2xl font-bold bg-slate-100 text-center p-4 rounded-lg">5</div>
+                    <button id="randomize-scalar" class="mt-4 w-full bg-slate-800 text-white py-2 px-4 rounded-lg hover:bg-slate-700 transition">New Scalar</button>
+                </div>
+
+                <!-- 1D Tensor (Vector) -->
+                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <h3 class="text-xl font-semibold mb-2">1-D Tensor (Vector)</h3>
+                    <p class="text-slate-600 mb-4 text-sm">A list or array of numbers.</p>
+                    <div id="vector-container" class="tensor-grid grid-cols-4 font-mono"></div>
+                    <button id="randomize-vector" class="mt-4 w-full bg-slate-800 text-white py-2 px-4 rounded-lg hover:bg-slate-700 transition">New Vector</button>
+                </div>
+
+                <!-- 2D Tensor (Matrix) -->
+                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <h3 class="text-xl font-semibold mb-2">2-D Tensor (Matrix)</h3>
+                    <p class="text-slate-600 mb-4 text-sm">A table of numbers. (e.g., a grayscale image)</p>
+                    <div id="matrix-container" class="tensor-grid grid-cols-4 font-mono"></div>
+                    <button id="randomize-matrix" class="mt-4 w-full bg-slate-800 text-white py-2 px-4 rounded-lg hover:bg-slate-700 transition">New Matrix</button>
+                </div>
+
+                <!-- 3D Tensor -->
+                <div class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <h3 class="text-xl font-semibold mb-2">3-D Tensor</h3>
+                    <p class="text-slate-600 mb-4 text-sm">A stack of matrices. (e.g., a color image)</p>
+                    <div id="tensor-3d-container" class="tensor-grid grid-cols-4 font-mono relative"></div>
+                    <div class="mt-4 flex justify-center space-x-2">
+                        <button class="channel-btn py-1 px-3 rounded-md bg-red-200 text-red-800" data-channel="r">R</button>
+                        <button class="channel-btn py-1 px-3 rounded-md bg-green-200 text-green-800" data-channel="g">G</button>
+                        <button class="channel-btn py-1 px-3 rounded-md bg-blue-200 text-blue-800" data-channel="b">B</button>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- transforms.ToTensor() Section -->
+        <section>
+            <h2 class="text-3xl font-bold text-center mb-4">The `transforms.ToTensor()` Converter</h2>
+            <p class="text-lg text-slate-600 max-w-3xl mx-auto text-center mb-8">This function prepares an image for PyTorch. It converts, scales, and reorders dimensions.</p>
+            
+            <div class="flex items-center justify-center mb-8">
+                <button id="transform-button" class="bg-blue-600 text-white font-bold py-3 px-8 rounded-full text-lg hover:bg-blue-700 transition-transform transform hover:scale-105 shadow-lg">
+                    Run transforms.ToTensor()
+                </button>
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-3 items-start gap-8">
+                <!-- Input Image -->
+                <div id="input-card" class="bg-white p-6 rounded-xl shadow-md border border-slate-200">
+                    <h3 class="text-xl font-semibold mb-2">Input: PIL Image / NumPy Array</h3>
+                    <div class="aspect-square bg-gradient-to-br from-purple-400 to-indigo-500 rounded-lg flex items-center justify-center mb-4">
+                        <span class="text-white font-bold text-2xl">IMAGE</span>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <p><span class="font-semibold">Format:</span> <span class="font-mono">PIL/NumPy</span></p>
+                        <p><span class="font-semibold">Dimensions:</span> <span class="font-mono">(H, W, C)</span></p>
+                        <p><span class="font-semibold">Pixel Range:</span> <span class="font-mono">0 to 255</span></p>
+                    </div>
+                </div>
+
+                <!-- Arrow -->
+                <div class="hidden md:flex items-center justify-center h-full">
+                     <svg id="arrow-svg" class="w-24 h-24 text-slate-400 transform-arrow" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                    </svg>
+                </div>
+
+                <!-- Output Tensor -->
+                <div id="output-card" class="bg-white p-6 rounded-xl shadow-md border border-slate-200 opacity-0">
+                    <h3 class="text-xl font-semibold mb-2">Output: PyTorch Tensor</h3>
+                    <div class="aspect-square bg-slate-100 rounded-lg flex items-center justify-center mb-4">
+                        <div id="output-tensor-vis" class="w-full h-full p-2 grid grid-cols-4 gap-1">
+                            <!-- Cells will be generated here -->
+                        </div>
+                    </div>
+                    <div class="space-y-2 text-sm">
+                        <p><span class="font-semibold">Format:</span> <span class="font-mono text-blue-600 font-bold">torch.Tensor</span></p>
+                        <p><span class="font-semibold">Dimensions:</span> <span class="font-mono text-blue-600 font-bold">(C, H, W)</span></p>
+                        <p><span class="font-semibold">Pixel Range:</span> <span class="font-mono text-blue-600 font-bold">0.0 to 1.0</span></p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </div>
+
+    <script>
+        // --- UTILITY FUNCTIONS ---
+        const getRandomInt = (max) => Math.floor(Math.random() * max);
+        const createCell = (content) => {
+            const cell = document.createElement('div');
+            cell.className = 'tensor-cell';
+            cell.textContent = content;
+            return cell;
+        };
+
+        // --- DOM ELEMENTS ---
+        const scalarContainer = document.getElementById('scalar-container');
+        const vectorContainer = document.getElementById('vector-container');
+        const matrixContainer = document.getElementById('matrix-container');
+        const tensor3dContainer = document.getElementById('tensor-3d-container');
+        const outputTensorVis = document.getElementById('output-tensor-vis');
+
+        // --- STATE for 3D TENSOR ---
+        let tensor3DData = { r: [], g: [], b: [] };
+
+        // --- GENERATION FUNCTIONS ---
+
+        function generateScalar() {
+            scalarContainer.textContent = getRandomInt(100);
+        }
+
+        function generateVector(size = 4) {
+            vectorContainer.innerHTML = '';
+            for (let i = 0; i < size; i++) {
+                vectorContainer.appendChild(createCell(getRandomInt(100)));
+            }
+        }
+
+        function generateMatrix(rows = 4, cols = 4) {
+            matrixContainer.innerHTML = '';
+            matrixContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+            for (let i = 0; i < rows * cols; i++) {
+                matrixContainer.appendChild(createCell(getRandomInt(256)));
+            }
+        }
+        
+        function generate3DTensorData(rows = 4, cols = 4) {
+            tensor3DData = { r: [], g: [], b: [] };
+            for (let i = 0; i < rows * cols; i++) {
+                tensor3DData.r.push(getRandomInt(256));
+                tensor3DData.g.push(getRandomInt(256));
+                tensor3DData.b.push(getRandomInt(256));
+            }
+        }
+
+        function render3DTensor(channel = 'r') {
+            tensor3dContainer.innerHTML = '';
+            const data = tensor3DData[channel];
+            data.forEach(val => {
+                const cell = createCell(val);
+                cell.style.backgroundColor = {
+                    r: '#fecaca', // red-200
+                    g: '#bbf7d0', // green-200
+                    b: '#bfdbfe'  // blue-200
+                }[channel];
+                cell.style.color = {
+                    r: '#991b1b', // red-800
+                    g: '#166534', // green-800
+                    b: '#1e40af'  // blue-800
+                }[channel];
+                tensor3dContainer.appendChild(cell);
+            });
+
+            document.querySelectorAll('.channel-btn').forEach(btn => {
+                btn.classList.toggle('active', btn.dataset.channel === channel);
+            });
+        }
+
+        function renderOutputTensor() {
+            outputTensorVis.innerHTML = '';
+            const allData = [...tensor3DData.r, ...tensor3DData.g, ...tensor3DData.b].slice(0, 16); // show a sample
+            allData.forEach(val => {
+                const cell = createCell((val / 255).toFixed(2));
+                outputTensorVis.appendChild(cell);
+            });
+        }
+
+        // --- EVENT LISTENERS ---
+        document.getElementById('randomize-scalar').addEventListener('click', generateScalar);
+        document.getElementById('randomize-vector').addEventListener('click', () => generateVector(4));
+        document.getElementById('randomize-matrix').addEventListener('click', () => generateMatrix(4, 4));
+        
+        document.querySelectorAll('.channel-btn').forEach(btn => {
+            btn.addEventListener('click', (e) => render3DTensor(e.target.dataset.channel));
+        });
+
+        document.getElementById('transform-button').addEventListener('click', () => {
+            const outputCard = document.getElementById('output-card');
+            const arrow = document.getElementById('arrow-svg');
+            
+            // Animate arrow
+            arrow.style.color = '#3b82f6'; // blue-500
+            arrow.style.transform = 'scale(1.2)';
+            
+            setTimeout(() => {
+                arrow.style.color = '#9ca3af'; // slate-400
+                arrow.style.transform = 'scale(1)';
+            }, 500);
+
+            // Show output card
+            if (outputCard.style.opacity === '0' || outputCard.style.opacity === '') {
+                generate3DTensorData(); // Generate new data for the visualization
+                renderOutputTensor();
+                outputCard.style.opacity = '1';
+                outputCard.classList.add('fade-in');
+            } else {
+                // If already visible, just regenerate the data
+                generate3DTensorData();
+                renderOutputTensor();
+            }
+        });
+
+        // --- INITIALIZATION ---
+        window.onload = () => {
+            generateScalar();
+            generateVector(4);
+            generateMatrix(4, 4);
+            generate3DTensorData(4, 4);
+            render3DTensor('r');
+        };
+    </script>
+</body>
+</html>
