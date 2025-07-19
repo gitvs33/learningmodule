@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive Cross-Entropy Loss Explainer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Roboto+Mono:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f8fafc; /* slate-50 */
+        }
+        .font-mono {
+            font-family: 'Roboto Mono', monospace;
+        }
+        .info-card {
+            background: white;
+            border-radius: 0.75rem;
+            border: 1px solid #e2e8f0; /* slate-200 */
+            box-shadow: 0 1px 3px 0 rgb(0 0 0 / 0.05);
+            transition: all 0.3s ease-in-out;
+        }
+        .slider-label {
+            width: 80px; /* Fixed width for alignment */
+        }
+        .correct-answer {
+            background-color: #ecfdf5; /* green-50 */
+            border-left: 4px solid #22c55e; /* green-500 */
+        }
+        .loss-meter-bar {
+            transition: height 0.3s ease-in-out, background-color 0.3s ease-in-out;
+        }
+    </style>
+</head>
+<body class="text-slate-800">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold text-slate-900">Understanding Cross-Entropy Loss</h1>
+            <p class="mt-4 text-lg text-slate-600 max-w-3xl mx-auto">The "Mistake Measurer" that tells a neural network how wrong its predictions are.</p>
+        </header>
+
+        <!-- Main Interactive Section -->
+        <section class="info-card p-6 md:p-8 mb-12">
+            <h2 class="text-2xl font-bold mb-6 text-center">The Classification Quiz</h2>
+            <div class="text-center mb-6">
+                <p class="text-lg">The model is shown an image. The correct answer is: <span class="font-bold text-2xl text-green-600">Cat</span></p>
+                <p class="text-slate-500">Your job: Adjust the model's raw output scores (logits) and see how the loss changes.</p>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 lg:gap-12">
+                <!-- Controls and Calculation -->
+                <div>
+                    <h3 class="text-xl font-semibold mb-4">1. Model's Raw Outputs (Logits)</h3>
+                    <div id="sliders-container" class="space-y-4">
+                        <!-- Sliders will be generated here -->
+                    </div>
+                    
+                    <hr class="my-6">
+
+                    <h3 class="text-xl font-semibold mb-2">2. Calculation Breakdown</h3>
+                    <div class="bg-slate-100 p-4 rounded-lg space-y-3">
+                        <div>
+                            <p class="font-semibold">Softmax Probabilities:</p>
+                            <p class="text-sm text-slate-600">Converts raw scores into probabilities from 0 to 1.</p>
+                            <p id="softmax-output" class="font-mono text-sm break-all"></p>
+                        </div>
+                        <div>
+                            <p class="font-semibold">Loss Formula: <span class="font-mono text-indigo-600">-log(p)</span></p>
+                             <p class="text-sm text-slate-600">Where 'p' is the probability assigned to the correct class.</p>
+                        </div>
+                        <div class="text-lg">
+                            <p id="calculation-step" class="font-mono"></p>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Visualization -->
+                <div class="flex flex-col items-center">
+                    <h3 class="text-xl font-semibold mb-4 w-full">3. Visualization</h3>
+                    <div class="w-full h-64 mb-6">
+                        <canvas id="probabilityChart"></canvas>
+                    </div>
+                    <div class="flex items-end gap-4 w-full justify-center">
+                        <div class="text-center">
+                            <p class="font-semibold">Total Loss</p>
+                            <div class="w-20 h-40 bg-slate-200 rounded-md flex flex-col-reverse relative">
+                                <div id="loss-meter-bar" class="w-full rounded-md loss-meter-bar"></div>
+                                <span id="loss-value-display" class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 font-bold text-slate-700">0.00</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Explanations Section -->
+        <section class="grid grid-cols-1 md:grid-cols-2 gap-8">
+            <div class="info-card p-6">
+                <h3 class="text-xl font-bold mb-3">What is its function?</h3>
+                <p class="text-slate-600">
+                    Cross-Entropy Loss measures the performance of a classification model whose output is a probability value between 0 and 1. It quantifies the difference between two probability distributions: the model's predicted probabilities and the actual true labels (where the correct class is 100% and all others are 0%).
+                    <br><br>
+                    A **low loss** means the model predicted a high probability for the correct class. A **high loss** means the model predicted a low probability for the correct class, indicating a big mistake.
+                </p>
+            </div>
+            <div class="info-card p-6">
+                <h3 class="text-xl font-bold mb-3">How does it affect the network?</h3>
+                <p class="text-slate-600">
+                    The loss value is the starting point for **backpropagation**. A large loss value creates large gradients (the "blame report"). When the optimizer uses these gradients to update the network's weights, the adjustments will be more significant.
+                    <br><br>
+                    Essentially, a big mistake (high loss) tells the network to make a big change to its parameters to avoid making that mistake again. A small mistake (low loss) results in a fine-tuning adjustment.
+                </p>
+            </div>
+        </section>
+    </div>
+
+    <script>
+        const classes = ['Cat', 'Dog', 'Car', 'Plane'];
+        const correctClassIndex = 0; // 'Cat' is the correct answer
+
+        const slidersContainer = document.getElementById('sliders-container');
+        const softmaxOutput = document.getElementById('softmax-output');
+        const calculationStep = document.getElementById('calculation-step');
+        const lossMeterBar = document.getElementById('loss-meter-bar');
+        const lossValueDisplay = document.getElementById('loss-value-display');
+        
+        let probabilityChart;
+
+        function createSliders() {
+            classes.forEach((name, index) => {
+                const isCorrect = index === correctClassIndex;
+                const div = document.createElement('div');
+                div.className = `flex items-center gap-2 p-2 rounded-lg ${isCorrect ? 'correct-answer' : ''}`;
+                
+                div.innerHTML = `
+                    <label for="slider-${index}" class="font-medium slider-label">${name}:</label>
+                    <input type="range" id="slider-${index}" class="w-full slider" min="-10" max="10" step="0.1" value="${isCorrect ? 5 : 0}">
+                    <span id="value-${index}" class="font-mono w-12 text-center">0.0</span>
+                `;
+                slidersContainer.appendChild(div);
+            });
+        }
+
+        function softmax(logits) {
+            const maxLogit = Math.max(...logits);
+            const exps = logits.map(logit => Math.exp(logit - maxLogit));
+            const sumExps = exps.reduce((a, b) => a + b, 0);
+            return exps.map(exp => exp / sumExps);
+        }
+
+        function update() {
+            const sliders = document.querySelectorAll('.slider');
+            const logits = Array.from(sliders).map(slider => parseFloat(slider.value));
+
+            // Update slider value displays
+            logits.forEach((logit, index) => {
+                document.getElementById(`value-${index}`).textContent = logit.toFixed(1);
+            });
+
+            const probabilities = softmax(logits);
+
+            // Update probability chart
+            probabilityChart.data.datasets[0].data = probabilities;
+            probabilityChart.update();
+
+            // Update calculation text
+            softmaxOutput.textContent = `[${probabilities.map(p => p.toFixed(3)).join(', ')}]`;
+            
+            const correctProb = probabilities[correctClassIndex];
+            const loss = -Math.log(correctProb);
+
+            calculationStep.textContent = `-log(${correctProb.toFixed(3)}) = ${loss.toFixed(3)}`;
+
+            // Update loss meter
+            const maxLoss = 5; // Cap for visualization
+            const lossPercentage = Math.min(1, loss / maxLoss) * 100;
+            lossMeterBar.style.height = `${lossPercentage}%`;
+            
+            if (loss < 0.5) {
+                lossMeterBar.style.backgroundColor = '#22c55e'; // green-500
+            } else if (loss < 2) {
+                lossMeterBar.style.backgroundColor = '#f97316'; // orange-500
+            } else {
+                lossMeterBar.style.backgroundColor = '#ef4444'; // red-500
+            }
+
+            lossValueDisplay.textContent = loss.toFixed(2);
+        }
+
+        function createChart() {
+            const ctx = document.getElementById('probabilityChart').getContext('2d');
+            probabilityChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: classes,
+                    datasets: [{
+                        label: 'Probability',
+                        data: [0, 0, 0, 0],
+                        backgroundColor: classes.map((_, index) => index === correctClassIndex ? 'rgba(34, 197, 94, 0.6)' : 'rgba(100, 116, 139, 0.6)'),
+                        borderColor: classes.map((_, index) => index === correctClassIndex ? 'rgba(34, 197, 94, 1)' : 'rgba(100, 116, 139, 1)'),
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            max: 1,
+                            title: { display: true, text: 'Probability' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    return `Probability: ${context.raw.toFixed(3)}`;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        window.onload = () => {
+            createSliders();
+            createChart();
+            
+            const sliders = document.querySelectorAll('.slider');
+            sliders.forEach(slider => {
+                slider.addEventListener('input', update);
+            });
+            
+            update(); // Initial call
+        };
+    </script>
+</body>
+</html>
