@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer: Cross-Attention Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .word-box {
+            min-width: 90px;
+            transition: all 0.3s ease-in-out;
+            position: relative;
+        }
+        .word-box.highlight {
+            transform: scale(1.1);
+            box-shadow: 0 0 20px rgba(192, 132, 252, 0.7); /* purple-400 glow */
+        }
+        .attention-line {
+            position: absolute;
+            height: 2.5px;
+            background-color: #c084fc; /* purple-400 */
+            transform-origin: left center;
+            transition: all 0.5s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .attention-line.visible {
+            opacity: 0.9;
+        }
+        .query-box {
+            transition: all 0.3s ease-in-out;
+            border-width: 2px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Cross-Attention: The Decoder's Superpower</h1>
+            <p class="text-slate-600 mt-2 max-w-3xl mx-auto">This is the bridge between the Encoder and Decoder. It allows the Decoder to "look up" relevant information from the original input sentence.</p>
+        </div>
+
+        <!-- Main Visualization Area -->
+        <div class="relative min-h-[300px]">
+            <!-- Attention Lines Container -->
+            <div id="attention-container" class="absolute top-0 left-0 w-full h-full z-0"></div>
+
+            <!-- 1. Encoder Memory -->
+            <div class="mb-24">
+                <h2 class="text-lg font-bold text-center text-slate-700 mb-3">Encoder's Memory (Keys & Values)</h2>
+                <div id="encoder-words" class="flex justify-center gap-4 p-4 bg-green-50 rounded-lg">
+                    <!-- Encoder words populated by JS -->
+                </div>
+            </div>
+
+            <!-- 2. Decoder Query -->
+            <div class="flex flex-col items-center">
+                 <h2 class="text-lg font-bold text-center text-slate-700 mb-3">Decoder's Query</h2>
+                <div id="decoder-query" class="word-box query-box p-4 rounded-lg shadow-md text-center font-medium z-10 border-blue-400 bg-blue-100">
+                    <!-- Decoder query populated by JS -->
+                </div>
+            </div>
+        </div>
+        
+        <!-- Controls -->
+        <div class="mt-8 flex justify-center">
+            <button id="next-step-btn" class="bg-indigo-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-600 transition-colors text-lg">Ask the first question</button>
+        </div>
+
+        <!-- Explanation Section -->
+        <div class="mt-12 pt-8 border-t border-slate-200 grid md:grid-cols-2 gap-8">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 mb-3">The Logic: Q, K, V</h2>
+                <p class="text-slate-600 mb-4">Cross-Attention uses the same Query, Key, Value logic as self-attention, but the sources are different:</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start">
+                        <span class="text-blue-500 mr-3 mt-1 font-bold">Q</span>
+                        <div><strong class="text-slate-700">Query (from Decoder):</strong> This is the Decoder's question. It's a vector representing its current state (e.g., "I've just written 'Die Katze', what do I need next?").</div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-3 mt-1 font-bold">K</span>
+                        <div><strong class="text-slate-700">Key (from Encoder):</strong> This is the "label" on each piece of information in the Encoder's memory. The Decoder compares its Query to these Keys to find the best match.</div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-green-500 mr-3 mt-1 font-bold">V</span>
+                        <div><strong class="text-slate-700">Value (from Encoder):</strong> This is the actual content or meaning of the information. Once the best Key is found, the Decoder takes its corresponding Value.</div>
+                    </li>
+                </ul>
+            </div>
+             <div>
+                <h2 class="text-xl font-bold text-slate-900 mb-3">When Is It Used?</h2>
+                <p class="text-slate-600 mb-4">Cross-Attention is essential in any task where one sequence needs to be generated based on another.</p>
+                <ul class="space-y-3 text-slate-600">
+                    <li><strong class="text-slate-700">Machine Translation:</strong> The target language (Decoder) looks at the source language (Encoder).</li>
+                    <li><strong class="text-slate-700">Question Answering:</strong> The answer (Decoder) looks at the context/document (Encoder).</li>
+                    <li><strong class="text-slate-700">Text Summarization:</strong> The summary (Decoder) looks at the full article (Encoder).</li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const encoderWordsEl = document.getElementById('encoder-words');
+        const decoderQueryEl = document.getElementById('decoder-query');
+        const attentionContainer = document.getElementById('attention-container');
+        const nextStepBtn = document.getElementById('next-step-btn');
+
+        const SIMULATION_DATA = [
+            { query: "Need to start the sentence...", attnScores: [0.9, 0.1, 0.05], bestMatchIndex: 0 },
+            { query: "I've written 'Die', need the noun...", attnScores: [0.1, 0.9, 0.2], bestMatchIndex: 1 },
+            { query: "I've written 'Die Katze', need the verb...", attnScores: [0.05, 0.2, 0.95], bestMatchIndex: 2 }
+        ];
+        const ENCODER_WORDS = ["The", "cat", "sat"];
+        let currentState = -1;
+
+        function drawWordBox(text, id, container, color) {
+            const el = document.createElement('div');
+            el.id = id;
+            el.textContent = text;
+            el.className = `word-box p-4 rounded-lg shadow-sm text-center font-medium z-10 ${color}`;
+            container.appendChild(el);
+        }
+
+        function drawAttentionLine(fromEl, toEl, strength) {
+            const containerRect = attentionContainer.getBoundingClientRect();
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            const x1 = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const y1 = fromRect.top - containerRect.top; // From top of query box
+            const x2 = toRect.left + toRect.width / 2 - containerRect.left;
+            const y2 = toRect.top + toRect.height - containerRect.top; // To bottom of encoder box
+
+            const angle = Math.atan2(y1 - y2, x1 - x2) * 180 / Math.PI + 180;
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+
+            const line = document.createElement('div');
+            line.className = 'attention-line';
+            line.style.width = `${distance}px`;
+            line.style.left = `${x2}px`;
+            line.style.top = `${y2}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.height = `${1 + strength * 6}px`;
+            attentionContainer.appendChild(line);
+            
+            setTimeout(() => line.classList.add('visible'), 50);
+        }
+
+        function runStep() {
+            currentState = (currentState + 1) % SIMULATION_DATA.length;
+            nextStepBtn.disabled = true;
+            
+            // Reset visuals
+            attentionContainer.innerHTML = '';
+            document.querySelectorAll('.word-box.highlight').forEach(el => el.classList.remove('highlight'));
+            
+            const stepData = SIMULATION_DATA[currentState];
+            
+            // Update query text
+            decoderQueryEl.textContent = stepData.query;
+            
+            // Animate attention
+            setTimeout(() => {
+                ENCODER_WORDS.forEach((_, index) => {
+                    const encoderWordEl = document.getElementById(`enc-${index}`);
+                    drawAttentionLine(decoderQueryEl, encoderWordEl, stepData.attnScores[index]);
+                });
+            }, 300);
+
+            // Highlight best match
+            setTimeout(() => {
+                const bestMatchEl = document.getElementById(`enc-${stepData.bestMatchIndex}`);
+                bestMatchEl.classList.add('highlight');
+                nextStepBtn.disabled = false;
+                nextStepBtn.textContent = "Ask the next question";
+            }, 1000);
+        }
+
+        function initialize() {
+            encoderWordsEl.innerHTML = '';
+            ENCODER_WORDS.forEach((word, i) => {
+                drawWordBox(word, `enc-${i}`, encoderWordsEl, 'bg-green-200');
+            });
+            decoderQueryEl.textContent = "Ready to start...";
+            nextStepBtn.textContent = "Ask the first question";
+            currentState = -1;
+        }
+
+        nextStepBtn.addEventListener('click', runStep);
+        window.onload = initialize;
+    </script>
+</body>
+</html>
