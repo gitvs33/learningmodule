@@ -1,0 +1,366 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer Self-Attention Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: #f0f4f8;
+        }
+        .word {
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .word.active {
+            transform: scale(1.1);
+            background-color: #60a5fa; /* blue-400 */
+            color: white;
+        }
+        .attention-line-container {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: -1;
+        }
+        .attention-line {
+            position: absolute;
+            background-color: #fb923c; /* orange-400 */
+            height: 2px;
+            transform-origin: left center;
+            transition: all 0.3s ease;
+        }
+        .score-badge {
+            position: absolute;
+            bottom: -2.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            padding: 0.2rem 0.5rem;
+            border-radius: 0.5rem;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: white;
+            background-color: #f97316; /* orange-500 */
+            opacity: 0;
+            transition: opacity 0.3s ease-in-out;
+            pointer-events: none;
+        }
+        .word.active .score-badge, .word:hover .score-badge {
+            opacity: 1;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Module 1: The Self-Attention Mechanism</h1>
+            <p class="text-slate-600 mt-2 max-w-2xl mx-auto">Click on a word to see how it "attends" to other words in the sentence. Higher attention scores mean the words are more relevant to the selected word's context.</p>
+        </div>
+
+        <!-- Sentence Input -->
+        <div class="mb-8 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="sentenceInput" class="flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-400 focus:outline-none" value="The cat sat on the mat">
+            <button id="updateSentenceBtn" class="bg-blue-500 text-white font-semibold py-3 px-5 rounded-lg hover:bg-blue-600 transition-colors">Visualize Sentence</button>
+        </div>
+
+        <!-- Visualization Container -->
+        <div id="visualization" class="relative w-full min-h-[250px] md:min-h-[200px] flex items-center justify-center">
+            <!-- Attention lines will be drawn here -->
+            <div id="attention-lines" class="attention-line-container"></div>
+            <!-- Words will be injected here -->
+            <div id="sentence-container" class="flex flex-wrap gap-x-4 gap-y-8 justify-center items-center text-lg md:text-xl font-medium">
+            </div>
+        </div>
+        
+        <!-- NEW: How it Works Section -->
+        <div class="mt-16 pt-8 border-t border-slate-200">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-900 text-center mb-6">How It Works: The 3-Step Logic</h2>
+            <div class="grid md:grid-cols-3 gap-6 text-center">
+                
+                <!-- Step 1 -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">1. Find Relevance (Q & K) 🔑</h3>
+                    <p class="text-slate-600 text-sm">
+                        The model generates a <strong class="text-sky-500">Query</strong> vector for the selected word and a <strong class="text-amber-500">Key</strong> vector for every word. It compares the Query to each Key to get a raw relevance score.
+                    </p>
+                </div>
+
+                <!-- Step 2 -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">2. Calculate Weights (Softmax) ⚖️</h3>
+                    <p class="text-slate-600 text-sm">
+                        These raw scores are fed into a <strong class="text-violet-500">softmax</strong> function, which converts them into percentages (attention weights). This decides how much focus to place on each word.
+                    </p>
+                </div>
+
+                <!-- Step 3 -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h3 class="font-bold text-lg text-slate-800 mb-2">3. Blend Information (V) 🍹</h3>
+                    <p class="text-slate-600 text-sm">
+                        Finally, the model creates a new, context-rich output by summing up the <strong class="text-emerald-500">Value</strong> vectors of all words, weighted by their attention scores.
+                    </p>
+                </div>
+
+            </div>
+            
+            <!-- Formula Section -->
+            <div class="mt-8 text-center">
+                <h3 class="font-semibold text-lg text-slate-800 mb-3">The Attention Formula</h3>
+                <div class="bg-slate-800 text-white/90 p-4 rounded-lg inline-flex items-center justify-center shadow-md font-mono text-lg md:text-xl">
+                    <span>Attention(Q, K, V) = softmax</span>
+                    <span class="text-2xl mx-1">(</span>
+                    <div class="flex flex-col items-center justify-center mx-1">
+                        <span class="border-b border-slate-400 px-2">Q K<sup>T</sup></span>
+                        <span>&radic;d<sub>k</sub></span>
+                    </div>
+                    <span class="text-2xl mx-1">)</span>
+                    <span>V</span>
+                </div>
+                 <p class="text-slate-500 text-sm mt-3">
+                    This formula combines all three steps to calculate the final output.
+                </p>
+            </div>
+        </div>
+
+        <!-- Dynamic Explanation Box -->
+        <div id="explanation" class="mt-8 p-4 bg-blue-50 border border-blue-200 rounded-lg text-center min-h-[80px]">
+            <p class="text-slate-500 italic">Select a word to begin the visualization.</p>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const sentenceContainer = document.getElementById('sentence-container');
+        const attentionLinesContainer = document.getElementById('attention-lines');
+        const explanationBox = document.getElementById('explanation');
+        const sentenceInput = document.getElementById('sentenceInput');
+        const updateSentenceBtn = document.getElementById('updateSentenceBtn');
+
+        // State
+        let words = [];
+        let wordElements = [];
+        // In a real Transformer, these vectors are learned. Here we generate them randomly for demonstration.
+        let vectors = {}; 
+
+        // --- Core Functions ---
+
+        /**
+         * Generates a random vector of a given size.
+         * @param {number} size - The dimension of the vector.
+         * @returns {number[]} - The generated vector.
+         */
+        const generateVector = (size) => Array.from({ length: size }, () => Math.random() * 2 - 1);
+
+        /**
+         * Calculates the dot product of two vectors.
+         * @param {number[]} vecA
+         * @param {number[]} vecB
+         * @returns {number} - The dot product.
+         */
+        const dotProduct = (vecA, vecB) => {
+            if (vecA.length !== vecB.length) return 0;
+            return vecA.map((val, i) => val * vecB[i]).reduce((sum, val) => sum + val, 0);
+        };
+
+        /**
+         * Applies the softmax function to an array of numbers.
+         * This normalizes scores into a probability distribution.
+         * @param {number[]} scores - An array of attention scores.
+         * @returns {number[]} - The normalized scores.
+         */
+        const softmax = (scores) => {
+            const d_k = 16; // Dimension of the key vector, for scaling
+            const scaled_scores = scores.map(score => score / Math.sqrt(d_k));
+            const max = Math.max(...scaled_scores);
+            const exps = scaled_scores.map(score => Math.exp(score - max)); // Subtract max for numerical stability
+            const sumExps = exps.reduce((sum, exp) => sum + exp, 0);
+            return exps.map(exp => exp / sumExps);
+        };
+
+        /**
+         * Initializes or updates the visualization for a new sentence.
+         */
+        const setupSentence = () => {
+            const sentence = sentenceInput.value.trim();
+            if (!sentence) return;
+
+            words = sentence.split(/\s+/);
+            sentenceContainer.innerHTML = '';
+            attentionLinesContainer.innerHTML = '';
+            wordElements = [];
+            vectors = {};
+
+            // Create word elements and generate their Q, K, V vectors
+            words.forEach((word, index) => {
+                vectors[index] = {
+                    query: generateVector(16), // Simplified vector dimension
+                    key: generateVector(16),
+                    value: generateVector(16) // Value vector is needed for the blended output
+                };
+
+                const wordEl = document.createElement('div');
+                wordEl.textContent = word;
+                wordEl.dataset.index = index;
+                wordEl.className = 'word p-3 rounded-lg bg-slate-200 shadow-sm';
+                
+                const scoreBadge = document.createElement('div');
+                scoreBadge.className = 'score-badge';
+                wordEl.appendChild(scoreBadge);
+
+                sentenceContainer.appendChild(wordEl);
+                wordElements.push(wordEl);
+            });
+            
+            resetExplanation();
+            addEventListeners();
+        };
+
+        /**
+         * Adds click listeners to the word elements.
+         */
+        const addEventListeners = () => {
+            wordElements.forEach(el => {
+                el.addEventListener('click', handleWordClick);
+            });
+        };
+
+        /**
+         * Handles the click event on a word.
+         * @param {MouseEvent} e - The click event.
+         */
+        const handleWordClick = (e) => {
+            const clickedIndex = parseInt(e.target.dataset.index);
+            if (isNaN(clickedIndex)) return;
+
+            // Deactivate previously active word
+            wordElements.forEach(el => el.classList.remove('active'));
+            // Activate clicked word
+            e.target.classList.add('active');
+
+            visualizeAttention(clickedIndex);
+        };
+
+        /**
+         * Calculates and visualizes attention from a source word to all other words.
+         * @param {number} sourceIndex - The index of the word we are calculating attention from.
+         */
+        const visualizeAttention = (sourceIndex) => {
+            const sourceVector = vectors[sourceIndex];
+            const sourceWord = words[sourceIndex];
+
+            // 1. Calculate dot product scores between the source Query and all other Keys
+            const attentionScores = words.map((_, targetIndex) => {
+                const targetVector = vectors[targetIndex];
+                return dotProduct(sourceVector.query, targetVector.key);
+            });
+
+            // 2. Normalize scores with Softmax (includes scaling)
+            const normalizedScores = softmax(attentionScores);
+
+            updateExplanation(sourceWord);
+            drawAttention(sourceIndex, normalizedScores);
+        };
+
+        /**
+         * Draws the attention lines and updates score badges.
+         * @param {number} sourceIndex - The index of the source word.
+         * @param {number[]} scores - The normalized attention scores.
+         */
+        const drawAttention = (sourceIndex, scores) => {
+            attentionLinesContainer.innerHTML = ''; // Clear previous lines
+            const sourceEl = wordElements[sourceIndex];
+            
+            // Get position of the source word's center
+            const sourceRect = sourceEl.getBoundingClientRect();
+            const containerRect = attentionLinesContainer.getBoundingClientRect();
+            const sourceX = sourceRect.left + sourceRect.width / 2 - containerRect.left;
+            const sourceY = sourceRect.top + sourceRect.height / 2 - containerRect.top;
+
+            wordElements.forEach((targetEl, targetIndex) => {
+                const score = scores[targetIndex];
+                
+                // Update score badge
+                const badge = targetEl.querySelector('.score-badge');
+                badge.textContent = score.toFixed(3);
+
+                // Get position of the target word's center
+                const targetRect = targetEl.getBoundingClientRect();
+                const targetX = targetRect.left + targetRect.width / 2 - containerRect.left;
+                const targetY = targetRect.top + targetRect.height / 2 - containerRect.top;
+
+                // Calculate line properties
+                const angle = Math.atan2(targetY - sourceY, targetX - sourceX) * 180 / Math.PI;
+                const distance = Math.sqrt(Math.pow(targetX - sourceX, 2) + Math.pow(targetY - sourceY, 2));
+
+                // Create and style the line
+                const line = document.createElement('div');
+                line.className = 'attention-line';
+                line.style.width = `${distance}px`;
+                line.style.left = `${sourceX}px`;
+                line.style.top = `${sourceY}px`;
+                line.style.transform = `rotate(${angle}deg)`;
+                // Line thickness and opacity are proportional to the attention score
+                line.style.height = `${1 + score * 10}px`;
+                line.style.opacity = `${0.1 + score * 0.9}`;
+                
+                attentionLinesContainer.appendChild(line);
+            });
+        };
+        
+        /**
+         * Updates the dynamic explanation text.
+         * @param {string} word - The currently selected word.
+         */
+        const updateExplanation = (word) => {
+            explanationBox.innerHTML = `
+                <p class="text-slate-800">
+                    Visualizing attention from the word <strong class="text-blue-600">"${word}"</strong>.
+                </p>
+                <p class="text-slate-600 mt-1">
+                    The lines show how much <strong class="text-blue-600">"${word}"</strong> focuses on other words to understand its own context.
+                </p>
+            `;
+        };
+        
+        /**
+         * Resets the dynamic explanation box to its initial state.
+         */
+        const resetExplanation = () => {
+            explanationBox.innerHTML = `<p class="text-slate-500 italic">Select a word to begin the visualization.</p>`;
+            wordElements.forEach(el => {
+                const badge = el.querySelector('.score-badge');
+                if(badge) badge.textContent = '';
+            });
+        };
+
+
+        // --- Event Listeners ---
+        updateSentenceBtn.addEventListener('click', setupSentence);
+        window.addEventListener('resize', () => {
+            // Redraw lines on resize if a word is active
+            const activeWord = document.querySelector('.word.active');
+            if (activeWord) {
+                // Re-trigger the click handler to recalculate positions
+                handleWordClick({ target: activeWord });
+            }
+        });
+
+        // Initial setup
+        window.onload = setupSentence;
+
+    </script>
+</body>
+</html>
