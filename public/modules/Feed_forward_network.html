@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer: Feed-Forward Network</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-code {
+            font-family: 'Fira Code', monospace;
+        }
+        .flow-arrow {
+            position: relative;
+            text-align: center;
+        }
+        .flow-arrow::after {
+            content: '→';
+            font-size: 2.5rem;
+            color: #94a3b8; /* slate-400 */
+            font-weight: 300;
+            line-height: 1;
+        }
+        .layer-box {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 0.75rem;
+            padding: 1rem;
+            text-align: center;
+            min-height: 120px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .vector-bar {
+            height: 1rem;
+            transition: width 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">The Feed-Forward Network (FFN)</h1>
+            <p class="text-slate-600 mt-2 max-w-3xl mx-auto">After attention mixes information between words, the FFN processes each word's vector <span class="font-bold">independently</span> to learn more complex patterns.</p>
+        </div>
+
+        <!-- Interactive Visualization -->
+        <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+            <h2 class="text-xl font-bold text-slate-800 mb-2 text-center">Interactive FFN Flow</h2>
+            <p class="text-center text-slate-500 mb-6 text-sm">Enter a vector to see how it's transformed. Notice the "Expand & Contract" process.</p>
+            
+            <div class="mb-6">
+                 <label for="inputVector" class="block text-sm font-medium text-slate-700 mb-1">Input Vector (from Add & Norm):</label>
+                <input type="text" id="inputVector" class="font-code w-full p-2 rounded-md border border-slate-300" value="0.8, -1.2, 0.3, -0.4">
+            </div>
+
+            <div class="grid grid-cols-1 md:grid-cols-5 items-center gap-4">
+                <!-- Input Layer -->
+                <div class="layer-box">
+                    <h3 class="font-semibold text-sm">Input</h3>
+                    <p class="text-xs text-slate-500 mb-2">Dim: <span id="dim-in">4</span></p>
+                    <div id="input-viz" class="space-y-1"></div>
+                </div>
+
+                <div class="flow-arrow hidden md:block"></div>
+
+                <!-- Hidden Layer -->
+                <div class="layer-box">
+                    <h3 class="font-semibold text-sm">1. Expand & Activate (ReLU)</h3>
+                    <p class="text-xs text-slate-500 mb-2">Dim: <span id="dim-hidden">8</span></p>
+                    <div id="hidden-viz" class="space-y-1"></div>
+                </div>
+
+                <div class="flow-arrow hidden md:block"></div>
+
+                <!-- Output Layer -->
+                <div class="layer-box">
+                    <h3 class="font-semibold text-sm">2. Contract</h3>
+                    <p class="text-xs text-slate-500 mb-2">Dim: <span id="dim-out">4</span></p>
+                    <div id="output-viz" class="space-y-1"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation Section -->
+        <div class="mt-12 pt-8 border-t border-slate-200 grid md:grid-cols-2 gap-8">
+            <div>
+                <h2 class="text-xl font-bold text-slate-900 mb-3">How It Works: Expand and Contract</h2>
+                <p class="text-slate-600 mb-4">The FFN is a very simple, two-step neural network:</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start">
+                        <span class="text-teal-500 mr-3 mt-1 font-bold">1.</span>
+                        <div><strong class="text-slate-700">Expansion Layer:</strong> It first projects the vector into a much larger dimension (e.g., from 512 to 2048). This gives the model a bigger "workspace" to find and separate complex patterns.</div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-teal-500 mr-3 mt-1 font-bold"> बीच में</span>
+                        <div><strong class="text-slate-700">ReLU Activation:</strong> After expanding, any negative numbers are set to zero. This simple non-linear step is crucial for the network to learn complex, non-linear relationships. <span class="italic text-slate-500">(Notice in the visualizer how negative inputs become zero in the hidden layer).</span></div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-teal-500 mr-3 mt-1 font-bold">2.</span>
+                        <div><strong class="text-slate-700">Contraction Layer:</strong> It then projects the large vector back down to the original dimension (e.g., from 2048 back to 512). This consolidates the patterns learned in the larger space.</div>
+                    </li>
+                </ul>
+            </div>
+             <div>
+                <h2 class="text-xl font-bold text-slate-900 mb-3">Why Is It Used?</h2>
+                <p class="text-slate-600 mb-4">Think of it like a private study session after a group discussion.</p>
+                <ul class="space-y-3">
+                    <li class="flex items-start">
+                        <span class="text-indigo-500 mr-3 mt-1">✓</span>
+                        <div><strong class="text-slate-700">Group Discussion (Attention):</strong> The Multi-Head Attention layer is where all the words talk to each other and share context.</div>
+                    </li>
+                    <li class="flex items-start">
+                        <span class="text-indigo-500 mr-3 mt-1">✓</span>
+                        <div><strong class="text-slate-700">Private Study (FFN):</strong> After the discussion, each word takes its newly enriched vector to the FFN for individual processing. The FFN acts like a "thought" process, finding deeper meaning and abstract connections within that single vector before the next group discussion (the next Encoder Layer).</div>
+                    </li>
+                </ul>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        const inputVectorEl = document.getElementById('inputVector');
+        const inputVizEl = document.getElementById('input-viz');
+        const hiddenVizEl = document.getElementById('hidden-viz');
+        const outputVizEl = document.getElementById('output-viz');
+        const dimInEl = document.getElementById('dim-in');
+        const dimHiddenEl = document.getElementById('dim-hidden');
+        const dimOutEl = document.getElementById('dim-out');
+
+        // --- Pseudo-random matrix generation for stable visualization ---
+        function pseudoRandom(seed) {
+            let value = seed;
+            return function() {
+                value = (value * 9301 + 49297) % 233280;
+                return (value / 233280) * 2 - 1; // Return value between -1 and 1
+            };
+        }
+
+        function createMatrix(rows, cols, seed) {
+            const matrix = [];
+            const rand = pseudoRandom(seed);
+            for (let i = 0; i < rows; i++) {
+                const row = [];
+                for (let j = 0; j < cols; j++) {
+                    row.push(rand());
+                }
+                matrix.push(row);
+            }
+            return matrix;
+        }
+
+        // --- Core FFN Logic ---
+        function matrixMultiply(matrix, vector) {
+            return matrix.map(row => row.reduce((sum, val, j) => sum + val * vector[j], 0));
+        }
+
+        function relu(vector) {
+            return vector.map(val => Math.max(0, val));
+        }
+        
+        function parseVector(str) {
+            return str.split(',').map(s => parseFloat(s.trim())).filter(n => !isNaN(n));
+        }
+
+        // --- Visualization ---
+        function createBar(value) {
+            const container = document.createElement('div');
+            container.className = 'w-full h-4 flex items-center';
+            
+            const bar = document.createElement('div');
+            const width = Math.abs(value) * 50; // Scale for display
+            bar.className = 'vector-bar rounded-sm';
+            bar.style.width = `${Math.min(width, 100)}%`;
+            bar.style.backgroundColor = value >= 0 ? '#38bdf8' : '#f43f5e'; // sky-500 or rose-500
+            if (value < 0) {
+                bar.style.marginLeft = `${50 - Math.min(width, 50)}%`;
+            } else {
+                 bar.style.marginLeft = '50%';
+            }
+            container.appendChild(bar);
+            return container;
+        }
+
+        function renderVector(container, vector) {
+            container.innerHTML = '';
+            vector.forEach(val => {
+                container.appendChild(createBar(val));
+            });
+        }
+
+        // --- Main Update Function ---
+        function update() {
+            const inputVector = parseVector(inputVectorEl.value);
+            if (inputVector.length === 0) return;
+
+            const d_model = inputVector.length;
+            const d_ff = d_model * 2; // Expansion factor
+
+            // Create stable weight matrices for consistent visualization
+            const W1 = createMatrix(d_ff, d_model, 1);
+            const W2 = createMatrix(d_model, d_ff, 2);
+
+            // FFN Calculation
+            const hiddenVectorRaw = matrixMultiply(W1, inputVector);
+            const hiddenVectorActivated = relu(hiddenVectorRaw);
+            const outputVector = matrixMultiply(W2, hiddenVectorActivated);
+
+            // Update dimensions text
+            dimInEl.textContent = d_model;
+            dimHiddenEl.textContent = d_ff;
+            dimOutEl.textContent = d_model;
+
+            // Render visualizations
+            renderVector(inputVizEl, inputVector);
+            renderVector(hiddenVizEl, hiddenVectorActivated);
+            renderVector(outputVizEl, outputVector);
+        }
+
+        inputVectorEl.addEventListener('input', update);
+        window.onload = update;
+
+    </script>
+</body>
+</html>
