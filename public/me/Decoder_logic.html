@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer: Interactive Decoder Logic</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .word-box {
+            min-width: 80px;
+        }
+        .attention-line {
+            position: absolute;
+            height: 2px;
+            transform-origin: left center;
+            transition: all 0.5s ease-in-out;
+            opacity: 0;
+            pointer-events: none;
+        }
+        .attention-line.visible {
+            opacity: 0.8;
+        }
+        .step-box {
+            border: 2px solid;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            min-height: 100px;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-6xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Visualizing the Decoder's Logic</h1>
+            <p class="text-slate-600 mt-2 max-w-3xl mx-auto">Use the "Next Step" button to generate a translation one word at a time and see the Decoder's "thought process".</p>
+        </div>
+
+        <!-- Main Visualization Area -->
+        <div class="relative">
+            <!-- Attention Lines SVG Container -->
+            <div id="attention-container" class="absolute top-0 left-0 w-full h-full z-0"></div>
+
+            <!-- Encoder Output (Static) -->
+            <div class="mb-12">
+                <h2 class="text-lg font-bold text-center text-slate-700 mb-3">1. Encoder Output (Context from Input)</h2>
+                <div id="encoder-words" class="flex justify-center gap-4">
+                    <!-- Encoder words will be populated here -->
+                </div>
+            </div>
+
+            <!-- Decoder Area -->
+            <div class="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
+                
+                <!-- Left: Decoder's Current State -->
+                <div class="space-y-4">
+                     <h2 class="text-lg font-bold text-slate-700">2. Decoder's Current Output</h2>
+                     <div id="decoder-words" class="flex flex-wrap gap-4 p-4 bg-slate-50 rounded-lg min-h-[80px]">
+                        <!-- Decoder words will be populated here -->
+                     </div>
+                     <div id="status-text" class="text-center text-slate-500 italic font-medium h-6"></div>
+                </div>
+
+                <!-- Middle: Decoder's Logic Steps -->
+                <div class="space-y-4">
+                    <h2 class="text-lg font-bold text-slate-700">3. Decoder's "Thought Process"</h2>
+                    <div id="step1-box" class="step-box border-orange-300 bg-orange-50/50 opacity-40">
+                        <h3 class="font-bold text-orange-800">Masked Self-Attention</h3>
+                        <p class="text-sm text-slate-600">"What have I already said?" It looks back at its own generated words.</p>
+                    </div>
+                     <div id="step2-box" class="step-box border-purple-300 bg-purple-50/50 opacity-40">
+                        <h3 class="font-bold text-purple-800">Encoder-Decoder Attention</h3>
+                        <p class="text-sm text-slate-600">"Given my context, what's relevant in the original sentence?"</p>
+                    </div>
+                </div>
+
+                <!-- Right: Prediction -->
+                <div class="space-y-4">
+                    <h2 class="text-lg font-bold text-slate-700">4. Prediction</h2>
+                    <div id="prediction-box" class="p-4 bg-slate-50 rounded-lg min-h-[230px]">
+                        <p class="text-sm text-slate-500 italic text-center">Waiting to predict...</p>
+                        <!-- Predictions will be populated here -->
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Controls -->
+        <div class="mt-8 pt-6 border-t border-slate-200 flex justify-center gap-4">
+            <button id="next-step-btn" class="bg-indigo-500 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-600 transition-colors text-lg">Start Generation</button>
+            <button id="reset-btn" class="bg-slate-300 text-slate-700 font-semibold py-3 px-6 rounded-lg hover:bg-slate-400 transition-colors">Reset</button>
+        </div>
+    </div>
+
+    <script>
+        const encoderWordsEl = document.getElementById('encoder-words');
+        const decoderWordsEl = document.getElementById('decoder-words');
+        const attentionContainer = document.getElementById('attention-container');
+        const nextStepBtn = document.getElementById('next-step-btn');
+        const resetBtn = document.getElementById('reset-btn');
+        const predictionBox = document.getElementById('prediction-box');
+        const statusText = document.getElementById('status-text');
+        
+        const step1Box = document.getElementById('step1-box');
+        const step2Box = document.getElementById('step2-box');
+
+        const SIMULATION_DATA = {
+            encoderWords: ["The", "cat", "sat"],
+            decoderSteps: [
+                { generatedWord: "[START]", nextPrediction: "Die", selfAttn: [], crossAttn: {target: 0, strength: 0.8} },
+                { generatedWord: "Die", nextPrediction: "Katze", selfAttn: [{from: 1, to: 0, strength: 0.7}], crossAttn: {target: 1, strength: 0.9} },
+                { generatedWord: "Katze", nextPrediction: "saß", selfAttn: [{from: 2, to: 0, strength: 0.2}, {from: 2, to: 1, strength: 0.8}], crossAttn: {target: 2, strength: 0.9} },
+                { generatedWord: "saß", nextPrediction: "[END]", selfAttn: [{from: 3, to: 1, strength: 0.3}, {from: 3, to: 2, strength: 0.7}], crossAttn: {target: 2, strength: 0.6} }
+            ],
+            vocabulary: ["Die", "Katze", "saß", "Der", "Hund", "[END]"]
+        };
+
+        let currentState = {
+            step: -1,
+            generatedWords: []
+        };
+
+        function drawWordBox(text, id, container, color = 'bg-slate-200') {
+            const el = document.createElement('div');
+            el.id = id;
+            el.textContent = text;
+            el.className = `word-box p-3 rounded-lg shadow-sm text-center font-medium z-10 ${color}`;
+            container.appendChild(el);
+        }
+
+        function drawAttentionLine(fromEl, toEl, color, strength) {
+            const containerRect = attentionContainer.getBoundingClientRect();
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+
+            const x1 = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const y1 = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const x2 = toRect.left + toRect.width / 2 - containerRect.left;
+            const y2 = toRect.top + toRect.height / 2 - containerRect.top;
+
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+
+            const line = document.createElement('div');
+            line.className = 'attention-line';
+            line.style.width = `${distance}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            line.style.backgroundColor = color;
+            line.style.height = `${1 + strength * 4}px`;
+            attentionContainer.appendChild(line);
+            
+            // Trigger transition
+            setTimeout(() => line.classList.add('visible'), 50);
+        }
+
+        function showPredictions(nextWord) {
+            predictionBox.innerHTML = '';
+            const vocab = [...SIMULATION_DATA.vocabulary];
+            // Simple probability simulation
+            vocab.forEach(word => {
+                const isCorrect = word === nextWord;
+                const prob = isCorrect ? 0.85 + Math.random() * 0.1 : Math.random() * 0.1;
+                
+                const predEl = document.createElement('div');
+                predEl.className = `flex items-center justify-between p-2 rounded ${isCorrect ? 'bg-green-200' : ''}`;
+                predEl.innerHTML = `
+                    <span class="font-medium ${isCorrect ? 'text-green-800' : 'text-slate-700'}">${word}</span>
+                    <div class="flex items-center gap-2">
+                        <div class="w-24 h-4 bg-slate-200 rounded-full">
+                            <div class="h-4 bg-green-500 rounded-full" style="width: ${prob * 100}%"></div>
+                        </div>
+                        <span class="text-sm font-mono ${isCorrect ? 'text-green-800 font-bold' : 'text-slate-500'}">${prob.toFixed(3)}</span>
+                    </div>
+                `;
+                predictionBox.appendChild(predEl);
+            });
+        }
+        
+        async function runStep() {
+            currentState.step++;
+            if (currentState.step >= SIMULATION_DATA.decoderSteps.length) {
+                statusText.textContent = "Generation Complete!";
+                nextStepBtn.disabled = true;
+                nextStepBtn.textContent = "Finished";
+                return;
+            }
+            
+            nextStepBtn.disabled = true;
+            attentionContainer.innerHTML = '';
+            const currentStepData = SIMULATION_DATA.decoderSteps[currentState.step];
+            
+            // 1. Add the new word to the decoder output
+            const wordId = `dec-${currentState.step}`;
+            drawWordBox(currentStepData.generatedWord, wordId, decoderWordsEl, 'bg-blue-200');
+            currentState.generatedWords.push(wordId);
+            const currentWordEl = document.getElementById(wordId);
+
+            // 2. Perform Masked Self-Attention
+            statusText.textContent = "1. Looking at previous output...";
+            step1Box.classList.remove('opacity-40');
+            step2Box.classList.add('opacity-40');
+            await new Promise(r => setTimeout(r, 500));
+
+            currentStepData.selfAttn.forEach(attn => {
+                const fromEl = document.getElementById(currentState.generatedWords[attn.from]);
+                const toEl = document.getElementById(currentState.generatedWords[attn.to]);
+                drawAttentionLine(fromEl, toEl, '#fb923c', attn.strength); // Orange
+            });
+            await new Promise(r => setTimeout(r, 1000));
+
+            // 3. Perform Encoder-Decoder Attention
+            statusText.textContent = "2. Looking at original input...";
+            step1Box.classList.add('opacity-40');
+            step2Box.classList.remove('opacity-40');
+            await new Promise(r => setTimeout(r, 500));
+            
+            const crossAttnTargetEl = document.getElementById(`enc-${currentStepData.crossAttn.target}`);
+            drawAttentionLine(currentWordEl, crossAttnTargetEl, '#a855f7', currentStepData.crossAttn.strength); // Purple
+            await new Promise(r => setTimeout(r, 1000));
+
+            // 4. Predict next word
+            statusText.textContent = "3. Predicting next word...";
+            step1Box.classList.add('opacity-40');
+            step2Box.classList.add('opacity-40');
+            showPredictions(currentStepData.nextPrediction);
+            
+            if (currentStepData.nextPrediction === '[END]') {
+                 statusText.textContent = "Generation Complete!";
+                 nextStepBtn.textContent = "Finished";
+            } else {
+                nextStepBtn.disabled = false;
+                nextStepBtn.textContent = `Generate: "${currentStepData.nextPrediction}"`;
+            }
+        }
+
+        function initialize() {
+            currentState.step = -1;
+            currentState.generatedWords = [];
+            
+            encoderWordsEl.innerHTML = '';
+            decoderWordsEl.innerHTML = '';
+            attentionContainer.innerHTML = '';
+            predictionBox.innerHTML = '<p class="text-sm text-slate-500 italic text-center">Waiting to predict...</p>';
+            statusText.textContent = '';
+            step1Box.classList.add('opacity-40');
+            step2Box.classList.add('opacity-40');
+            
+            SIMULATION_DATA.encoderWords.forEach((word, i) => {
+                drawWordBox(word, `enc-${i}`, encoderWordsEl, 'bg-green-200');
+            });
+            
+            nextStepBtn.disabled = false;
+            nextStepBtn.textContent = "Start Generation";
+        }
+
+        nextStepBtn.addEventListener('click', runStep);
+        resetBtn.addEventListener('click', initialize);
+
+        window.onload = initialize;
+    </script>
+</body>
+</html>
