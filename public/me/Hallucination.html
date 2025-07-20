@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI: Hallucinations</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        #ai-response-text {
+            white-space: pre-wrap;
+        }
+        .fact-check {
+            opacity: 0;
+            transform: translateY(10px);
+            transition: opacity 0.5s ease, transform 0.5s ease;
+        }
+        .fact-check.visible {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">AI Hallucinations</h1>
+            <p class="text-slate-600 mt-3 max-w-3xl mx-auto">An AI doesn't "know" facts. It knows patterns. See what happens when you ask about something that doesn't exist, but sounds like it could.</p>
+        </div>
+
+        <!-- Interactive Scenario -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+            
+            <!-- Left: Controls -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">The Prompt</h2>
+                <p class="text-slate-600 mb-4">Choose a prompt designed to trick the AI into generating a plausible but false response.</p>
+                <div class="mb-4">
+                    <label for="prompt-select" class="block font-semibold text-slate-700 mb-2">Select a Prompt:</label>
+                    <select id="prompt-select" class="w-full p-3 border border-slate-300 rounded-lg">
+                        <option value="baleen_whale_forest">"Tell me about the forest-dwelling baleen whale."</option>
+                        <option value="chilly_war">"What were the main causes of the Chilly War of 1788?"</option>
+                        <option value="einstein_painting">"Describe Albert Einstein's famous painting, 'Quantum Sunset'."</option>
+                    </select>
+                </div>
+                <button id="ask-ai-btn" class="w-full bg-indigo-600 text-white font-semibold py-3 px-6 rounded-lg hover:bg-indigo-700 transition-colors text-lg">Ask AI</button>
+            </div>
+
+            <!-- Right: AI Response & Fact Check -->
+            <div class="space-y-4">
+                <div>
+                    <h2 class="text-xl font-bold text-slate-800 mb-2">AI's Confident Response:</h2>
+                    <div id="ai-response" class="p-4 bg-blue-50 border border-blue-200 rounded-lg min-h-[150px]">
+                        <p id="ai-response-text" class="text-slate-700">...</p>
+                    </div>
+                </div>
+                <div id="fact-check-container" class="fact-check">
+                     <h2 class="text-xl font-bold text-red-600 mb-2">Fact Check:</h2>
+                     <div class="p-4 bg-red-50 border border-red-200 rounded-lg">
+                        <p id="fact-check-text" class="text-red-800"></p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="mt-12 pt-8 border-t border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-900 text-center mb-6">Why Does This Happen?</h2>
+            <div class="text-center text-slate-600 max-w-3xl mx-auto">
+                <p>The AI isn't lying; it's just a very advanced pattern-matching engine. It recognized the *pattern* of your question ("Tell me about X") and generated a response that is linguistically and stylistically similar to real answers in its training data. It filled in the gaps with plausible-sounding details because its goal is to create a coherent sequence of words, **not to state a verified fact.** This is a fundamental limitation of current AI technology.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const askBtn = document.getElementById('ask-ai-btn');
+        const promptSelect = document.getElementById('prompt-select');
+        const aiResponseText = document.getElementById('ai-response-text');
+        const factCheckContainer = document.getElementById('fact-check-container');
+        const factCheckText = document.getElementById('fact-check-text');
+
+        const SCENARIOS = {
+            'baleen_whale_forest': {
+                hallucination: "The forest-dwelling baleen whale, also known as the 'Arboreal Leviathan,' was a remarkable species believed to have lived in the dense, ancient rainforests of the late Miocene epoch. Instead of filtering krill, its baleen was adapted to filter nutrient-rich pollen and spores from the air, a unique adaptation for a mammal of its size.",
+                truth: "This is a complete fabrication. Baleen whales are exclusively marine animals and have never lived in forests. The AI combined the concepts 'baleen whale' and 'forest-dwelling' to create a plausible-sounding but fictional creature."
+            },
+            'chilly_war': {
+                hallucination: "The Chilly War of 1788 was a brief but significant conflict between Scandinavian kingdoms, primarily Sweden and Denmark-Norway, over control of North Atlantic ice-free trading routes. It was famously triggered by the 'Great Freeze,' an unusually harsh winter that led to resource scarcity and heightened tensions.",
+                truth: "There was no 'Chilly War of 1788.' The AI likely recognized the pattern of 'X War of YYYY' and invented a conflict, combining plausible elements like Scandinavian kingdoms and trade route disputes."
+            },
+            'einstein_painting': {
+                hallucination: "While primarily known for his scientific work, Albert Einstein briefly explored painting. His most famous piece, 'Quantum Sunset,' is an abstract oil on canvas created in 1934. It attempts to visually represent the probabilistic nature of quantum mechanics through swirling, uncertain colors and a fragmented depiction of light.",
+                truth: "Albert Einstein was not a painter and never created a piece called 'Quantum Sunset.' The AI has hallucinated this entire artistic career by blending the concept of 'Einstein' with the common pattern of famous people having hidden talents or hobbies."
+            }
+        };
+
+        function typeWriter(element, text, callback) {
+            let i = 0;
+            element.innerHTML = '';
+            const speed = 20; // typing speed in milliseconds
+
+            function type() {
+                if (i < text.length) {
+                    element.innerHTML += text.charAt(i);
+                    i++;
+                    setTimeout(type, speed);
+                } else if (callback) {
+                    callback();
+                }
+            }
+            type();
+        }
+
+        function runScenario() {
+            askBtn.disabled = true;
+            askBtn.textContent = 'AI is thinking...';
+            
+            // Reset state
+            factCheckContainer.classList.remove('visible');
+            aiResponseText.textContent = '...';
+
+            const scenarioKey = promptSelect.value;
+            const scenario = SCENARIOS[scenarioKey];
+
+            setTimeout(() => {
+                typeWriter(aiResponseText, scenario.hallucination, () => {
+                    factCheckText.textContent = scenario.truth;
+                    setTimeout(() => {
+                        factCheckContainer.classList.add('visible');
+                        askBtn.disabled = false;
+                        askBtn.textContent = 'Ask AI';
+                    }, 500);
+                });
+            }, 500);
+        }
+
+        askBtn.addEventListener('click', runScenario);
+    </script>
+</body>
+</html>
