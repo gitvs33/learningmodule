@@ -1,0 +1,272 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>The Complete Transformer: An Interactive Flowchart</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .component {
+            border: 2px solid;
+            padding: 1rem;
+            border-radius: 0.75rem;
+            text-align: center;
+            background-color: white;
+            cursor: pointer;
+            transition: all 0.2s ease-in-out;
+            position: relative;
+        }
+        .component:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+        }
+        .flow-arrow {
+            font-size: 2rem;
+            color: #94a3b8; /* slate-400 */
+            font-weight: 300;
+            line-height: 1;
+            text-align: center;
+            margin: 0.75rem 0;
+        }
+        .stack {
+            border: 2px dashed;
+            padding: 1.5rem;
+            border-radius: 1rem;
+            background-color: #f8fafc;
+        }
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0, 0, 0, 0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 50;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.visible {
+            opacity: 1;
+            pointer-events: auto;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 2rem;
+            border-radius: 1rem;
+            max-width: 90%;
+            width: 600px;
+            transform: scale(0.95);
+            transition: transform 0.3s ease;
+        }
+        .modal-overlay.visible .modal-content {
+            transform: scale(1);
+        }
+        .connector-line {
+            position: absolute;
+            top: 50%;
+            left: 100%;
+            width: 10rem;
+            height: 3px;
+            background-color: #a78bfa; /* violet-400 */
+        }
+        .connector-line::after {
+            content: 'K, V →';
+            position: absolute;
+            right: -0.5rem;
+            top: 50%;
+            transform: translateY(-150%);
+            font-size: 1rem;
+            font-weight: bold;
+            color: #a78bfa;
+            background-color: #f1f5f9;
+            padding: 0.2rem 0.4rem;
+            border-radius: 0.25rem;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl mx-auto">
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">The Complete Transformer Flowchart</h1>
+            <p class="text-slate-600 mt-3 max-w-4xl mx-auto">This is a complete, interactive map of the Transformer. <span class="font-semibold text-indigo-600">Click on any component</span> to learn about its internal logic.</p>
+        </div>
+
+        <!-- Main Diagram -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-40 gap-y-10">
+            <!-- Encoder Side -->
+            <div class="flex flex-col items-center">
+                <div class="text-lg font-semibold text-slate-700">Input: "The cat sat"</div>
+                <div class="flow-arrow">↓</div>
+                <div class="component border-gray-300 w-full max-w-md" data-modal="embedding">
+                    <h3 class="font-bold">Input Embedding & Positional Encoding</h3>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="stack border-green-400 w-full max-w-md">
+                    <h2 class="text-xl font-bold text-center text-green-700 mb-4">Encoder Stack (Nx)</h2>
+                    <div class="component border-green-300" data-modal="mha">
+                        <h3 class="font-bold">Multi-Head Self-Attention</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-gray-300" data-modal="addnorm">
+                        <h3 class="font-bold">Add & Norm</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-green-300" data-modal="ffn">
+                        <h3 class="font-bold">Feed-Forward Network</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-gray-300" data-modal="addnorm">
+                        <h3 class="font-bold">Add & Norm</h3>
+                    </div>
+                    <div class="connector-line hidden lg:block"></div>
+                </div>
+            </div>
+
+            <!-- Decoder Side -->
+            <div class="flex flex-col items-center">
+                <div class="text-lg font-semibold text-slate-700">Output: "Die Katze..."</div>
+                <div class="flow-arrow">↓</div>
+                <div class="component border-gray-300 w-full max-w-md" data-modal="embedding">
+                    <h3 class="font-bold">Output Embedding & Positional Encoding</h3>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="stack border-blue-400 w-full max-w-md">
+                    <h2 class="text-xl font-bold text-center text-blue-700 mb-4">Decoder Stack (Nx)</h2>
+                    <div class="component border-blue-300" data-modal="masked_mha">
+                        <h3 class="font-bold">Masked Multi-Head Self-Attention</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-gray-300" data-modal="addnorm">
+                        <h3 class="font-bold">Add & Norm</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-blue-300" data-modal="cross_attn">
+                        <h3 class="font-bold">Cross-Attention</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-gray-300" data-modal="addnorm">
+                        <h3 class="font-bold">Add & Norm</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-blue-300" data-modal="ffn">
+                        <h3 class="font-bold">Feed-Forward Network</h3>
+                    </div>
+                    <div class="flow-arrow">↓</div>
+                    <div class="component border-gray-300" data-modal="addnorm">
+                        <h3 class="font-bold">Add & Norm</h3>
+                    </div>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="component border-gray-300 w-full max-w-md" data-modal="output">
+                    <h3 class="font-bold">Final Linear + Softmax</h3>
+                </div>
+                <div class="flow-arrow">↓</div>
+                <div class="text-lg font-semibold text-slate-700">Predicted Word</div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal -->
+    <div id="modal" class="modal-overlay">
+        <div id="modal-content" class="modal-content">
+            <!-- Modal content injected by JS -->
+        </div>
+    </div>
+
+    <script>
+        const modal = document.getElementById('modal');
+        const modalContent = document.getElementById('modal-content');
+
+        const modalData = {
+            embedding: {
+                title: 'Embedding & Positional Encoding',
+                body: `<p class="mb-4">This is the first step. It converts words into numbers (vectors) the machine can understand.</p>
+                       <ul class="space-y-2 text-left">
+                         <li><strong>Word Embedding:</strong> Each word gets a vector representing its meaning (e.g., "cat" and "dog" have similar vectors).</li>
+                         <li><strong>Positional Encoding:</strong> A "timestamp" vector is added to give the model a sense of word order. It's calculated using sine and cosine waves.</li>
+                       </ul>
+                       <p class="mt-4 font-semibold">Final Vector = Meaning Vector + Position Vector</p>`
+            },
+            mha: {
+                title: 'Multi-Head Self-Attention',
+                body: `<p class="mb-4">The model's way of understanding context. It's like a committee of experts looking at the sentence simultaneously.</p>
+                       <ul class="space-y-2 text-left">
+                         <li>Each "head" is an expert that runs its own self-attention calculation in parallel.</li>
+                         <li>One head might track grammar, another might track meaning.</li>
+                         <li>This allows the model to learn different types of relationships at the same time.</li>
+                       </ul>`
+            },
+            masked_mha: {
+                title: 'Masked Multi-Head Self-Attention',
+                body: `<p class="mb-4">This works just like regular self-attention, but with one crucial rule: it cannot look into the future.</p>
+                       <p class="text-left">When generating a word, the model is "masked" from seeing any words that come after it in the sequence. This forces it to make predictions based only on the words it has already generated.</p>`
+            },
+            addnorm: {
+                title: 'Add & Norm',
+                body: `<p class="mb-4">A crucial stabilization trick that helps the model train effectively. It's a two-step process:</p>
+                       <ul class="space-y-2 text-left">
+                         <li><strong>Add (Residual Connection):</strong> The input to a block is added to its output. This prevents the model from "forgetting" the original information. It's like adding plain broth back to a spicy soup to not lose the original flavor.</li>
+                         <li><strong>Norm (Layer Normalization):</strong> The values in the vector are rescaled to a standard range. This keeps the math stable, like ensuring every bowl of soup is exactly one liter.</li>
+                       </ul>`
+            },
+            ffn: {
+                title: 'Feed-Forward Network (FFN)',
+                body: `<p class="mb-4">After attention mixes information between words, the FFN acts like a "private study session" for each word's vector individually.</p>
+                       <p class="text-left mb-2">It's a simple two-layer network that processes each vector to find deeper patterns:</p>
+                       <ol class="list-decimal list-inside text-left space-y-1">
+                         <li><strong>Expand:</strong> Projects the vector to a much larger size to find patterns.</li>
+                         <li><strong>Contract:</strong> Projects it back down to consolidate the new information.</li>
+                       </ol>`
+            },
+            cross_attn: {
+                title: 'Cross-Attention',
+                body: `<p class="mb-4">The most important step in the Decoder. It's the bridge that connects the Decoder to the Encoder's memory.</p>
+                       <p class="text-left">The Decoder sends a <strong>Query</strong> (Q) asking "what do I need?". It compares this to the Encoder's <strong>Keys</strong> (K) to find the most relevant word in the original sentence. It then takes the corresponding <strong>Value</strong> (V) from the Encoder.</p>
+                       <p class="mt-4 font-semibold">This is how the translation is guided by the original text.</p>`
+            },
+            output: {
+                title: 'Final Linear + Softmax Layer',
+                body: `<p class="mb-4">This is the final step to make a prediction.</p>
+                       <ul class="space-y-2 text-left">
+                         <li><strong>Linear Layer:</strong> Takes the final vector from the Decoder stack and projects it to a huge vector, with one number for every possible word in the vocabulary (e.g., 30,000 words).</li>
+                         <li><strong>Softmax Function:</strong> Converts these raw numbers into probabilities. The word with the highest probability is chosen as the next word in the sequence.</li>
+                       </ul>`
+            }
+        };
+
+        document.querySelectorAll('.component').forEach(el => {
+            el.addEventListener('click', () => {
+                const modalId = el.dataset.modal;
+                const data = modalData[modalId];
+                if (data) {
+                    modalContent.innerHTML = `
+                        <h2 class="text-2xl font-bold text-slate-900 mb-4">${data.title}</h2>
+                        <div class="text-slate-600">${data.body}</div>
+                        <button id="close-modal" class="mt-6 bg-indigo-500 text-white font-semibold py-2 px-4 rounded-lg hover:bg-indigo-600">Close</button>
+                    `;
+                    modal.classList.add('visible');
+                }
+            });
+        });
+
+        modal.addEventListener('click', (e) => {
+            if (e.target.id === 'modal' || e.target.id === 'close-modal') {
+                modal.classList.remove('visible');
+            }
+        });
+
+    </script>
+</body>
+</html>
