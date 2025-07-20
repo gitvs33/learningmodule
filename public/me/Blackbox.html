@@ -1,0 +1,236 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI's Black Box Problem</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .neuron {
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            border: 2px solid #94a3b8;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+        .neuron.active {
+            background-color: #60a5fa;
+            border-color: #2563eb;
+            transform: scale(1.1);
+        }
+        .neuron-label {
+            position: absolute;
+            bottom: -1.75rem;
+            width: 150px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            color: #475569;
+        }
+        .connection {
+            position: absolute;
+            background-color: #cbd5e1;
+            height: 2px;
+            transform-origin: left center;
+            z-index: -1;
+            transition: background-color 0.3s ease;
+        }
+        .connection.active {
+            background-color: #60a5fa;
+        }
+        .llm-node {
+            position: absolute;
+            width: 8px;
+            height: 8px;
+            background-color: #334155;
+            border-radius: 50%;
+            transition: all 0.5s ease;
+        }
+        .llm-node.active {
+            background-color: #facc15; /* yellow-400 */
+            transform: scale(1.5);
+            box-shadow: 0 0 10px #facc15;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-7xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-10">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">The Black Box Problem</h1>
+            <p class="text-slate-600 mt-3 max-w-4xl mx-auto">Why can we understand a simple AI but not a complex one? This interactive visualizer shows the difference between an interpretable "glass box" and an opaque "black box".</p>
+        </div>
+
+        <!-- Main Diagram -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-x-12 gap-y-10">
+            
+            <!-- Left: Interpretable Network -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h2 class="text-2xl font-bold text-slate-800 text-center mb-4">The Glass Box</h2>
+                <p class="text-center text-slate-600 mb-6">A simple network to recognize handwritten digits. We can trace the logic.</p>
+                
+                <div class="relative h-96" id="simple-net-container">
+                    <!-- Neurons and connections will be drawn here by JS -->
+                </div>
+
+                <div class="text-center mt-8">
+                    <p class="mb-2 font-semibold">Select a digit to see the path:</p>
+                    <div class="flex justify-center gap-2">
+                        <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" onclick="activatePath('8')">See '8'</button>
+                        <button class="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600" onclick="activatePath('1')">See '1'</button>
+                        <button class="px-4 py-2 bg-slate-300 text-slate-700 rounded-lg hover:bg-slate-400" onclick="activatePath('reset')">Reset</button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right: Black Box Network -->
+            <div class="bg-slate-900 p-6 rounded-xl border border-slate-700 text-white">
+                 <h2 class="text-2xl font-bold text-center mb-4">The Black Box</h2>
+                 <p class="text-center text-slate-400 mb-6">A Large Language Model. The scale makes the logic untraceable.</p>
+                 
+                 <div class="relative h-96 rounded-lg overflow-hidden" id="llm-container">
+                    <!-- LLM nodes will be drawn here by JS -->
+                 </div>
+
+                 <div class="text-center mt-8">
+                    <p class="mb-2 font-semibold">Give it a prompt:</p>
+                    <button class="px-4 py-2 bg-yellow-400 text-slate-900 rounded-lg hover:bg-yellow-300" onclick="activateLLM()">"What is justice?"</button>
+                 </div>
+            </div>
+        </div>
+        
+        <!-- Explanation -->
+        <div class="mt-12 pt-8 border-t border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-900 text-center mb-6">Why the Difference?</h2>
+            <p class="text-center text-slate-600 max-w-3xl mx-auto">The problem isn't that the math is different—it's a problem of **scale and interpretation**. We know how one brick works, but we can't comprehend how a trillion bricks have organized themselves into a city. The simple network has understandable "concepts" in its neurons, while the LLM has abstract concepts distributed across millions of neurons, creating a pattern too complex for any human to decipher.</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Simple Network Visualization ---
+        const simpleNetContainer = document.getElementById('simple-net-container');
+        const simpleNeurons = {
+            input: { id: 'n-in', x: 50, y: 50, label: 'Input Image' },
+            l1_loop_top: { id: 'n-l1-lt', x: 30, y: 150, label: 'Top Loop Detector' },
+            l1_loop_bottom: { id: 'n-l1-lb', x: 70, y: 150, label: 'Bottom Loop Detector' },
+            l1_vert_line: { id: 'n-l1-vl', x: 50, y: 220, label: 'Vertical Line Detector' },
+            output_8: { id: 'n-out-8', x: 30, y: 300, label: 'Output: "8"' },
+            output_1: { id: 'n-out-1', x: 70, y: 300, label: 'Output: "1"' }
+        };
+
+        function drawSimpleNetwork() {
+            // Draw Neurons
+            for (const key in simpleNeurons) {
+                const n = simpleNeurons[key];
+                const el = document.createElement('div');
+                el.id = n.id;
+                el.className = 'neuron absolute';
+                el.style.left = `calc(${n.x}% - 25px)`;
+                el.style.top = `calc(${n.y}% - 25px)`;
+                
+                const label = document.createElement('div');
+                label.className = 'neuron-label';
+                label.textContent = n.label;
+                el.appendChild(label);
+
+                simpleNetContainer.appendChild(el);
+            }
+            // Draw Connections
+            drawConnection('n-in', 'n-l1-lt');
+            drawConnection('n-in', 'n-l1-lb');
+            drawConnection('n-in', 'n-l1-vl');
+            drawConnection('n-l1-lt', 'n-out-8', 'c-lt-8');
+            drawConnection('n-l1-lb', 'n-out-8', 'c-lb-8');
+            drawConnection('n-l1-vl', 'n-out-1', 'c-vl-1');
+        }
+
+        function drawConnection(fromId, toId, connId = null) {
+            const fromEl = document.getElementById(fromId);
+            const toEl = document.getElementById(toId);
+            const fromRect = fromEl.getBoundingClientRect();
+            const toRect = toEl.getBoundingClientRect();
+            const containerRect = simpleNetContainer.getBoundingClientRect();
+
+            const x1 = fromRect.left + fromRect.width / 2 - containerRect.left;
+            const y1 = fromRect.top + fromRect.height / 2 - containerRect.top;
+            const x2 = toRect.left + toRect.width / 2 - containerRect.left;
+            const y2 = toRect.top + toRect.height / 2 - containerRect.top;
+
+            const angle = Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI;
+            const distance = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+
+            const line = document.createElement('div');
+            if (connId) line.id = connId;
+            line.className = 'connection';
+            line.style.width = `${distance}px`;
+            line.style.left = `${x1}px`;
+            line.style.top = `${y1}px`;
+            line.style.transform = `rotate(${angle}deg)`;
+            simpleNetContainer.appendChild(line);
+        }
+
+        function activatePath(digit) {
+            // Reset all
+            document.querySelectorAll('.neuron, .connection').forEach(el => el.classList.remove('active'));
+            
+            if (digit === 'reset') return;
+            
+            document.getElementById('n-in').classList.add('active');
+
+            if (digit === '8') {
+                ['n-l1-lt', 'n-l1-lb', 'n-out-8', 'c-lt-8', 'c-lb-8'].forEach(id => {
+                    document.getElementById(id).classList.add('active');
+                });
+            } else if (digit === '1') {
+                ['n-l1-vl', 'n-out-1', 'c-vl-1'].forEach(id => {
+                    document.getElementById(id).classList.add('active');
+                });
+            }
+        }
+
+        // --- LLM Visualization ---
+        const llmContainer = document.getElementById('llm-container');
+        const llmNodes = [];
+
+        function drawLLMNetwork() {
+            const numNodes = 300;
+            for (let i = 0; i < numNodes; i++) {
+                const node = document.createElement('div');
+                node.className = 'llm-node';
+                node.style.left = `${Math.random() * 98}%`;
+                node.style.top = `${Math.random() * 98}%`;
+                llmContainer.appendChild(node);
+                llmNodes.push(node);
+            }
+        }
+
+        function activateLLM() {
+            llmNodes.forEach(node => node.classList.remove('active'));
+            
+            // Activate a random, complex path
+            for (let i = 0; i < 100; i++) {
+                setTimeout(() => {
+                    const randomIndex = Math.floor(Math.random() * llmNodes.length);
+                    llmNodes[randomIndex].classList.add('active');
+                }, Math.random() * 500);
+            }
+        }
+
+        // --- Initial Drawing ---
+        window.onload = () => {
+            drawSimpleNetwork();
+            drawLLMNetwork();
+        };
+
+    </script>
+</body>
+</html>
