@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer: Add & Norm Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-code {
+            font-family: 'Fira Code', monospace;
+        }
+        .vector-input {
+            background-color: #f8fafc;
+            border: 1px solid #e2e8f0;
+        }
+        .bar-chart-container {
+            height: 150px;
+            display: flex;
+            gap: 0.5rem;
+            justify-content: center;
+            align-items: flex-end;
+            padding: 1rem;
+            border-radius: 0.5rem;
+            background-color: #f1f5f9;
+        }
+        .bar {
+            width: 2rem;
+            transition: height 0.3s ease-in-out;
+            position: relative;
+        }
+        .bar-label {
+            position: absolute;
+            bottom: -1.5rem;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 0.75rem;
+            font-weight: 500;
+            color: #475569;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">The "Add & Norm" Layer</h1>
+            <p class="text-slate-600 mt-2 max-w-3xl mx-auto">This interactive tool breaks down the crucial stabilization step used after Multi-Head Attention and Feed-Forward Networks. Change the numbers to see how it works!</p>
+        </div>
+
+        <!-- Input Vectors -->
+        <div class="grid md:grid-cols-2 gap-6 mb-8">
+            <div>
+                <label for="inputVector" class="block text-sm font-medium text-slate-700 mb-1">1. Original Input Vector (Plain Broth)</label>
+                <input type="text" id="inputVector" class="font-code w-full p-2 rounded-md vector-input" value="0.2, -0.5, 1.1, 0.8">
+            </div>
+            <div>
+                <label for="processedVector" class="block text-sm font-medium text-slate-700 mb-1">2. Processed Output (Spice Mix)</label>
+                <input type="text" id="processedVector" class="font-code w-full p-2 rounded-md vector-input" value="1.5, 2.1, -0.9, 0.1">
+            </div>
+        </div>
+
+        <!-- Visualization -->
+        <div class="space-y-8">
+            <!-- Step 1: Add -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Step 1: Add (Residual Connection)</h2>
+                <p class="text-slate-600 mb-4">First, we add the <strong class="text-sky-600">Original Input</strong> to the <strong class="text-rose-600">Processed Output</strong> element by element. This is the "Add" part, also known as a Residual Connection. It ensures we don't lose the original information.</p>
+                <div id="add-result" class="font-code text-center bg-white p-4 rounded-lg text-lg text-slate-800 border border-slate-300 shadow-sm">
+                    <!-- JS will populate this -->
+                </div>
+            </div>
+
+            <!-- Step 2: Norm -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Step 2: Norm (Layer Normalization)</h2>
+                <p class="text-slate-600 mb-4">Next, the combined vector is "normalized." This rescales the numbers to have a consistent range (an average of ~0), which makes training the model much more stable. Notice how the values and their scale change dramatically.</p>
+                <div class="grid md:grid-cols-2 gap-6">
+                    <div>
+                        <h3 class="text-center font-semibold text-slate-700 mb-2">Vector Before Normalization</h3>
+                        <div id="before-norm-chart" class="bar-chart-container"></div>
+                        <div id="before-norm-stats" class="text-center text-sm text-slate-500 mt-8"></div>
+                    </div>
+                     <div>
+                        <h3 class="text-center font-semibold text-slate-700 mb-2">Vector After Normalization</h3>
+                        <div id="after-norm-chart" class="bar-chart-container"></div>
+                        <div id="after-norm-stats" class="text-center text-sm text-slate-500 mt-8"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const inputVectorEl = document.getElementById('inputVector');
+        const processedVectorEl = document.getElementById('processedVector');
+        const addResultEl = document.getElementById('add-result');
+        const beforeNormChartEl = document.getElementById('before-norm-chart');
+        const afterNormChartEl = document.getElementById('after-norm-chart');
+        const beforeNormStatsEl = document.getElementById('before-norm-stats');
+        const afterNormStatsEl = document.getElementById('after-norm-stats');
+
+        /**
+         * Parses a string of comma-separated numbers into an array of floats.
+         */
+        function parseVector(str) {
+            return str.split(',')
+                .map(s => parseFloat(s.trim()))
+                .filter(n => !isNaN(n));
+        }
+
+        /**
+         * Calculates the mean of a vector.
+         */
+        function getMean(vector) {
+            if (vector.length === 0) return 0;
+            const sum = vector.reduce((acc, val) => acc + val, 0);
+            return sum / vector.length;
+        }
+
+        /**
+         * Calculates the standard deviation of a vector.
+         */
+        function getStdDev(vector, mean) {
+            if (vector.length === 0) return 0;
+            const variance = vector.reduce((acc, val) => acc + Math.pow(val - mean, 2), 0) / vector.length;
+            return Math.sqrt(variance);
+        }
+
+        /**
+         * Renders a bar chart for a given vector.
+         */
+        function renderChart(container, vector) {
+            container.innerHTML = '';
+            if (vector.length === 0) return;
+
+            const maxAbsValue = Math.max(...vector.map(Math.abs), 1); // Use 1 as min scale to avoid division by zero
+
+            vector.forEach(value => {
+                const bar = document.createElement('div');
+                const height = (Math.abs(value) / maxAbsValue) * 100;
+                const color = value >= 0 ? 'bg-sky-500' : 'bg-rose-500';
+                
+                bar.className = `bar ${color} rounded-t-sm`;
+                bar.style.height = `${height}%`;
+
+                const label = document.createElement('span');
+                label.className = 'bar-label';
+                label.textContent = value.toFixed(2);
+                bar.appendChild(label);
+                
+                container.appendChild(bar);
+            });
+        }
+
+        /**
+         * The main function to update the entire visualization.
+         */
+        function update() {
+            const vec1 = parseVector(inputVectorEl.value);
+            const vec2 = parseVector(processedVectorEl.value);
+
+            // --- Step 1: Add ---
+            const minLength = Math.min(vec1.length, vec2.length);
+            const addedVector = [];
+            let addHtml = '<div class="flex flex-wrap justify-center gap-x-4 gap-y-2">';
+            for (let i = 0; i < minLength; i++) {
+                const sum = vec1[i] + vec2[i];
+                addedVector.push(sum);
+                addHtml += `
+                    <div class="flex items-center">
+                        <span class="text-sky-600">${vec1[i]}</span>
+                        <span class="mx-2 text-slate-500">+</span>
+                        <span class="text-rose-600">${vec2[i]}</span>
+                        <span class="mx-2 text-slate-500">=</span>
+                        <span class="font-bold text-slate-800">${sum.toFixed(2)}</span>
+                    </div>
+                `;
+            }
+            addHtml += '</div>';
+            addResultEl.innerHTML = addHtml;
+
+            // --- Step 2: Norm ---
+            // Before Norm
+            renderChart(beforeNormChartEl, addedVector);
+            const beforeMean = getMean(addedVector);
+            const beforeStd = getStdDev(addedVector, beforeMean);
+            beforeNormStatsEl.innerHTML = `Mean: <strong>${beforeMean.toFixed(2)}</strong> | StdDev: <strong>${beforeStd.toFixed(2)}</strong>`;
+
+            // After Norm
+            const epsilon = 1e-5; // Small value to prevent division by zero
+            const normalizedVector = addedVector.map(val => (val - beforeMean) / (beforeStd + epsilon));
+            renderChart(afterNormChartEl, normalizedVector);
+            const afterMean = getMean(normalizedVector);
+            const afterStd = getStdDev(normalizedVector, afterMean);
+            afterNormStatsEl.innerHTML = `Mean: <strong>${afterMean.toFixed(2)}</strong> | StdDev: <strong>${afterStd.toFixed(2)}</strong>`;
+        }
+
+        // --- Event Listeners ---
+        inputVectorEl.addEventListener('input', update);
+        processedVectorEl.addEventListener('input', update);
+
+        // Initial render
+        window.onload = update;
+    </script>
+</body>
+</html>
