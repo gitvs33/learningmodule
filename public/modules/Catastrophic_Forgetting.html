@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI: Catastrophic Forgetting</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .neuron-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 1fr);
+            gap: 4px;
+        }
+        .neuron {
+            width: 100%;
+            padding-bottom: 100%; /* Aspect ratio 1:1 */
+            background-color: #e2e8f0; /* slate-200 */
+            border-radius: 2px;
+            transition: background-color 0.4s ease;
+        }
+        .performance-bar {
+            transition: width 0.4s ease-in-out;
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-4xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-slate-900">Catastrophic Forgetting</h1>
+            <p class="text-slate-600 mt-3 max-w-3xl mx-auto">A neural network can forget previously learned tasks when trained on a new one. This is a major challenge for AI that needs to learn continuously.</p>
+        </div>
+
+        <!-- Interactive Scenario -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+            
+            <!-- Left: Network Visualization -->
+            <div class="bg-slate-50 p-6 rounded-xl border border-slate-200">
+                <h2 class="text-xl font-bold text-slate-800 text-center mb-4">Neural Network Weights</h2>
+                <div id="neuron-grid" class="neuron-grid">
+                    <!-- Neurons populated by JS -->
+                </div>
+                <p id="network-status" class="text-center text-sm text-slate-500 mt-4 italic">Network is untrained.</p>
+            </div>
+
+            <!-- Right: Training & Performance -->
+            <div>
+                <h2 class="text-xl font-bold text-slate-800 mb-4">1. Train the Network</h2>
+                <div class="flex gap-4 mb-8">
+                    <button id="train-cats-btn" class="w-full bg-blue-500 text-white font-semibold py-3 rounded-lg hover:bg-blue-600">Train on Task A (Cats)</button>
+                    <button id="train-dogs-btn" class="w-full bg-orange-500 text-white font-semibold py-3 rounded-lg hover:bg-orange-600">Train on Task B (Dogs)</button>
+                </div>
+
+                <h2 class="text-xl font-bold text-slate-800 mb-4">2. Check Performance</h2>
+                <div class="space-y-4">
+                    <div>
+                        <label class="font-semibold text-slate-700">Task A (Cats) Accuracy</label>
+                        <div class="w-full bg-slate-200 rounded-full h-6 mt-1">
+                            <div id="bar-cats" class="performance-bar bg-blue-500 h-6 rounded-full text-center text-white font-bold leading-6">0%</div>
+                        </div>
+                    </div>
+                    <div>
+                        <label class="font-semibold text-slate-700">Task B (Dogs) Accuracy</label>
+                        <div class="w-full bg-slate-200 rounded-full h-6 mt-1">
+                            <div id="bar-dogs" class="performance-bar bg-orange-500 h-6 rounded-full text-center text-white font-bold leading-6">0%</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Explanation -->
+        <div class="mt-12 pt-8 border-t border-slate-200">
+            <h2 class="text-2xl font-bold text-slate-900 text-center mb-6">What Happened?</h2>
+            <div class="text-center text-slate-600 max-w-3xl mx-auto">
+                <p>When you trained the network on the second task, it adjusted all its internal weights to become an expert at that new task. In doing so, it **overwrote the specific weight configuration** that made it an expert on the first task. The old knowledge was lost.</p>
+                <p class="mt-4">This is unlike humans. Learning a new skill, like playing the violin, doesn't make you forget a previously learned one, like playing the guitar. Overcoming this "catastrophic forgetting" is a critical area of research to build truly adaptive and lifelong learning AI systems.</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const grid = document.getElementById('neuron-grid');
+        const trainCatsBtn = document.getElementById('train-cats-btn');
+        const trainDogsBtn = document.getElementById('train-dogs-btn');
+        const barCats = document.getElementById('bar-cats');
+        const barDogs = document.getElementById('bar-dogs');
+        const networkStatus = document.getElementById('network-status');
+
+        const NUM_NEURONS = 100;
+        let neurons = [];
+        let cat_weights = [];
+        let dog_weights = [];
+
+        // --- Initialization ---
+        function initialize() {
+            grid.innerHTML = '';
+            for (let i = 0; i < NUM_NEURONS; i++) {
+                // Create stable "ideal" weights for each task
+                cat_weights.push(Math.random());
+                dog_weights.push(Math.random());
+
+                const neuron = document.createElement('div');
+                neuron.className = 'neuron';
+                grid.appendChild(neuron);
+                neurons.push(neuron);
+            }
+        }
+
+        // --- Core Logic ---
+        function trainOn(task) {
+            let targetWeights, color, statusText;
+            if (task === 'cats') {
+                targetWeights = cat_weights;
+                color = `hsl(217, 71%, 53%)`; // Blue
+                statusText = "Weights optimized for Task A (Cats)";
+                
+                // Update performance bars
+                barCats.style.width = '100%';
+                barCats.textContent = '100%';
+                barDogs.style.width = '5%'; // Forgets dogs
+                barDogs.textContent = '5%';
+
+            } else { // dogs
+                targetWeights = dog_weights;
+                color = `hsl(30, 90%, 50%)`; // Orange
+                statusText = "Weights optimized for Task B (Dogs)";
+
+                // Update performance bars
+                barDogs.style.width = '100%';
+                barDogs.textContent = '100%';
+                barCats.style.width = '7%'; // Forgets cats
+                barCats.textContent = '7%';
+            }
+
+            networkStatus.textContent = statusText;
+
+            // Visualize the weight update
+            neurons.forEach((neuron, i) => {
+                // Color intensity based on weight value
+                const lightness = 100 - (targetWeights[i] * 40);
+                neuron.style.backgroundColor = color.replace(/(\d+)%\)/, `${lightness}%)`);
+            });
+        }
+
+        // --- Event Listeners ---
+        trainCatsBtn.addEventListener('click', () => trainOn('cats'));
+        trainDogsBtn.addEventListener('click', () => trainOn('dogs'));
+
+        // --- Run on Load ---
+        initialize();
+
+    </script>
+</body>
+</html>
