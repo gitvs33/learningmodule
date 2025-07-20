@@ -1,0 +1,252 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Transformer: Positional Encoding</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .font-code {
+            font-family: 'Fira Code', monospace;
+        }
+        .heatmap-cell {
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+        .heatmap-cell:hover {
+            transform: scale(1.2);
+            box-shadow: 0 0 15px rgba(0,0,0,0.3);
+            z-index: 10;
+        }
+        .tooltip {
+            position: absolute;
+            background-color: #1f2937;
+            color: white;
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 0.8rem;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.2s;
+            white-space: nowrap;
+            z-index: 20;
+            transform: translate(-50%, -110%);
+        }
+    </style>
+</head>
+<body class="bg-slate-100 text-slate-800 flex items-center justify-center min-h-screen p-4">
+
+    <div class="w-full max-w-5xl mx-auto bg-white p-6 md:p-8 rounded-2xl shadow-lg">
+        
+        <!-- Header -->
+        <div class="text-center mb-6">
+            <h1 class="text-2xl md:text-3xl font-bold text-slate-900">Module 3: Positional Encoding</h1>
+            <p class="text-slate-600 mt-2 max-w-3xl mx-auto">Self-attention has no inherent sense of word order. Positional Encodings are special vectors added to each word's embedding to give the model a "timestamp" for its position.</p>
+        </div>
+
+        <!-- Sentence Input -->
+        <div class="mb-8 flex flex-col sm:flex-row gap-2">
+            <input type="text" id="sentenceInput" class="flex-grow p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-teal-400 focus:outline-none" value="The cat sat on the mat">
+            <button id="updateSentenceBtn" class="bg-teal-500 text-white font-semibold py-3 px-5 rounded-lg hover:bg-teal-600 transition-colors">Visualize</button>
+        </div>
+
+        <!-- Main Visualization Area -->
+        <div class="grid lg:grid-cols-2 gap-8 items-start">
+            <!-- Left Side: Explanation -->
+            <div>
+                <h2 class="text-xl font-bold text-slate-800 mb-4">Why Is This Needed?</h2>
+                <p class="text-slate-600 mb-4">
+                    The attention mechanism sees the input as a "bag of words" — it knows which words are present, but not their order. Without positional information, the sentences <strong class="text-slate-700">"The cat chased the dog"</strong> and <strong class="text-slate-700">"The dog chased the cat"</strong> would look nearly identical to the model.
+                </p>
+                <p class="text-slate-600">
+                    To fix this, we inject a unique vector, the <strong class="text-teal-600">Positional Encoding</strong>, for each position. This vector is added to the word's own meaning (its embedding), creating a final representation that contains information about both <strong class="text-slate-700">what</strong> the word is and <strong class="text-slate-700">where</strong> it is.
+                </p>
+
+                <div class="mt-6 bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <h3 class="font-semibold text-slate-800 mb-2">The Formula</h3>
+                    <p class="text-slate-600 text-sm mb-3">The model uses sine and cosine functions at different frequencies to generate these unique vectors:</p>
+                    <div class="font-code text-xs bg-slate-800 text-white p-3 rounded">
+                        <p>PE(pos, 2i) = sin(pos / 10000<sup>2i/d</sup>)</p>
+                        <p>PE(pos, 2i+1) = cos(pos / 10000<sup>2i/d</sup>)</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Right Side: Heatmap Visualization -->
+            <div class="relative">
+                <h3 class="text-lg font-semibold text-slate-800 mb-2 text-center">Encoding Heatmap (d=32)</h3>
+                <div id="heatmap-container" class="flex border border-slate-300 rounded-lg overflow-hidden">
+                    <div id="word-labels" class="bg-slate-100 p-2 flex flex-col justify-around font-medium text-sm text-right pr-2"></div>
+                    <div id="heatmap" class="flex-grow grid"></div>
+                </div>
+                <div id="tooltip" class="tooltip"></div>
+            </div>
+        </div>
+
+        <!-- NEW: Decoding the Heatmap Section -->
+        <div class="mt-12 pt-8 border-t border-slate-200">
+            <h2 class="text-xl md:text-2xl font-bold text-slate-900 text-center mb-6">Decoding the Heatmap: Colors and Waves</h2>
+            <div class="grid md:grid-cols-2 gap-8 items-center">
+                <!-- Text Explanation -->
+                <div class="text-slate-600 space-y-4">
+                    <p>Each cell's color represents a value between -1 and 1, generated by sine/cosine waves:</p>
+                    <ul class="space-y-2 pl-4">
+                        <li><strong class="text-red-500">Bright Red</strong> = Value is close to **+1** (the peak of the wave).</li>
+                        <li><strong class="text-slate-400">White</strong> = Value is close to **0** (the middle of the wave).</li>
+                        <li><strong class="text-blue-500">Bright Blue</strong> = Value is close to **-1** (the trough of the wave).</li>
+                    </ul>
+                    <p>
+                        The columns on the <strong class="text-slate-700">left are "fast waves"</strong> (high frequency), alternating color quickly. This gives a precise signal for close-by words.
+                    </p>
+                     <p>
+                        The columns on the <strong class="text-slate-700">right are "slow waves"</strong> (low frequency), forming broad bands. This gives a general signal for a word's overall location.
+                    </p>
+                </div>
+                <!-- Wave Visualization -->
+                <div class="bg-slate-50 p-4 rounded-lg border border-slate-200">
+                    <svg viewBox="0 0 200 100" class="w-full h-auto">
+                        <title>Sine Wave Visualization</title>
+                        <!-- Axis lines -->
+                        <line x1="0" y1="50" x2="200" y2="50" stroke="#94a3b8" stroke-width="0.5"/>
+                        <line x1="10" y1="0" x2="10" y2="100" stroke="#94a3b8" stroke-width="0.5"/>
+                        <!-- Sine wave path -->
+                        <path d="M 10 50 Q 35 0, 60 50 T 110 50 Q 135 100, 160 50 T 210 50" stroke="#334155" stroke-width="1.5" fill="none"/>
+                        <!-- Labels and points -->
+                        <circle cx="60" cy="50" r="2" fill="#334155"/>
+                        <text x="60" y="62" text-anchor="middle" font-size="6" fill="#334155" font-weight="bold">0</text>
+                        
+                        <circle cx="35" cy="25" r="2" fill="#ef4444"/>
+                        <text x="35" y="18" text-anchor="middle" font-size="6" fill="#ef4444" font-weight="bold">+1</text>
+                        
+                        <circle cx="85" cy="75" r="2" fill="#3b82f6"/>
+                        <text x="85" y="87" text-anchor="middle" font-size="6" fill="#3b82f6" font-weight="bold">-1</text>
+                    </svg>
+                </div>
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // DOM Elements
+        const sentenceInput = document.getElementById('sentenceInput');
+        const updateSentenceBtn = document.getElementById('updateSentenceBtn');
+        const heatmapContainer = document.getElementById('heatmap');
+        const wordLabelsContainer = document.getElementById('word-labels');
+        const tooltip = document.getElementById('tooltip');
+
+        // Configuration
+        const EMBEDDING_DIM = 32; // d_model
+
+        /**
+         * Generates the positional encoding vector for a given position.
+         * @param {number} position - The position in the sequence (e.g., 0, 1, 2...).
+         * @param {number} dim - The dimension of the embedding.
+         * @returns {number[]} - The positional encoding vector.
+         */
+        function getPositionalEncoding(position, dim) {
+            const pe = new Array(dim).fill(0);
+            for (let i = 0; i < dim; i++) {
+                const angle = position / Math.pow(10000, (2 * Math.floor(i / 2)) / dim);
+                if (i % 2 === 0) { // Even indices use sine
+                    pe[i] = Math.sin(angle);
+                } else { // Odd indices use cosine
+                    pe[i] = Math.cos(angle);
+                }
+            }
+            return pe;
+        }
+
+        /**
+         * Maps a value from -1 to 1 to a color.
+         * @param {number} value - The value to map (-1 to 1).
+         * @returns {string} - An HSL color string.
+         */
+        function getColorForValue(value) {
+            // Maps -1 (blue) to 0 (white) to 1 (red)
+            const hue = value > 0 ? 0 : 240; // 0 is red, 240 is blue
+            const saturation = 100;
+            const lightness = 100 - (Math.abs(value) * 50); // 100% lightness is white, 50% is full color
+            return `hsl(${hue}, ${saturation}%, ${lightness}%)`;
+        }
+
+        /**
+         * Main function to generate and render the visualization.
+         */
+        function render() {
+            const sentence = sentenceInput.value.trim();
+            const words = sentence ? sentence.split(/\s+/) : [];
+            const seqLength = words.length;
+
+            if (seqLength === 0) {
+                heatmapContainer.innerHTML = '';
+                wordLabelsContainer.innerHTML = '';
+                return;
+            }
+
+            // Clear previous state
+            heatmapContainer.innerHTML = '';
+            wordLabelsContainer.innerHTML = '';
+            
+            // Set grid layout based on dimensions
+            heatmapContainer.style.gridTemplateColumns = `repeat(${EMBEDDING_DIM}, 1fr)`;
+            heatmapContainer.style.gridTemplateRows = `repeat(${seqLength}, 1fr)`;
+
+            // Generate and append cells
+            for (let pos = 0; pos < seqLength; pos++) {
+                const peVector = getPositionalEncoding(pos, EMBEDDING_DIM);
+                
+                // Add word label
+                const label = document.createElement('div');
+                label.className = 'flex-grow flex items-center justify-end';
+                label.textContent = words[pos];
+                wordLabelsContainer.appendChild(label);
+
+                // Add heatmap cells for the vector
+                for (let i = 0; i < EMBEDDING_DIM; i++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'heatmap-cell w-full h-full';
+                    cell.style.backgroundColor = getColorForValue(peVector[i]);
+                    cell.dataset.pos = pos;
+                    cell.dataset.dim = i;
+                    cell.dataset.value = peVector[i].toFixed(4);
+                    cell.dataset.word = words[pos];
+                    heatmapContainer.appendChild(cell);
+                }
+            }
+        }
+
+        // --- Event Listeners ---
+        updateSentenceBtn.addEventListener('click', render);
+
+        heatmapContainer.addEventListener('mouseover', (e) => {
+            if (e.target.classList.contains('heatmap-cell')) {
+                const { pos, dim, value, word } = e.target.dataset;
+                tooltip.textContent = `Word: "${word}" (pos ${pos}, dim ${dim}) | Value: ${value}`;
+                tooltip.style.opacity = '1';
+            }
+        });
+
+        heatmapContainer.addEventListener('mousemove', (e) => {
+            if (e.target.classList.contains('heatmap-cell')) {
+                // Position tooltip relative to the main container
+                const containerRect = e.currentTarget.closest('.w-full').getBoundingClientRect();
+                tooltip.style.left = `${e.clientX - containerRect.left}px`;
+                tooltip.style.top = `${e.clientY - containerRect.top}px`;
+            }
+        });
+
+        heatmapContainer.addEventListener('mouseout', () => {
+            tooltip.style.opacity = '0';
+        });
+
+        // Initial render
+        window.onload = render;
+    </script>
+</body>
+</html>
