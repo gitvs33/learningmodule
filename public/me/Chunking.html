@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Interactive get_batch Visualizer</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Fira+Code:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        .code-font {
+            font-family: 'Fira Code', monospace;
+        }
+        .data-char {
+            display: inline-block;
+            text-align: center;
+            width: 18px;
+            height: 24px;
+            line-height: 24px;
+            position: relative;
+            border-radius: 2px;
+        }
+        .data-char.highlight-x {
+            background-color: rgba(79, 70, 229, 0.4); /* indigo-600 with opacity */
+            color: #e0e7ff;
+        }
+        .data-char.highlight-y {
+            background-color: rgba(217, 70, 239, 0.4); /* fuchsia-500 with opacity */
+            color: #fce7f3;
+        }
+        .batch-row {
+            display: flex;
+            align-items: center;
+            margin-bottom: 8px;
+            padding: 4px;
+            border-radius: 4px;
+            background-color: #374151; /* gray-700 */
+        }
+        .batch-label {
+            font-weight: 700;
+            margin-right: 12px;
+            color: #9ca3af; /* gray-400 */
+        }
+        .batch-char {
+            display: inline-block;
+            width: 20px;
+            height: 28px;
+            line-height: 28px;
+            text-align: center;
+            border-radius: 3px;
+            margin: 0 1px;
+            font-weight: 500;
+        }
+        .batch-char.x-char {
+            background-color: #4f46e5; /* indigo-600 */
+        }
+        .batch-char.y-char {
+            background-color: #c026d3; /* fuchsia-600 */
+        }
+    </style>
+</head>
+<body class="bg-gray-900 text-gray-200">
+
+    <div class="container mx-auto p-4 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-white">The `get_batch` Function Visualizer</h1>
+            <p class="text-gray-400 mt-2">See how `batch_size` and `block_size` create training examples.</p>
+        </header>
+
+        <!-- Controls -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8 shadow-lg flex flex-col md:flex-row gap-8 items-center justify-center">
+            <div class="w-full md:w-1/3">
+                <label for="batch-size-slider" class="block mb-2 font-medium text-white">Batch Size: <span id="batch-size-value" class="font-bold text-indigo-400">4</span></label>
+                <input id="batch-size-slider" type="range" min="1" max="16" value="4" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="w-full md:w-1/3">
+                <label for="block-size-slider" class="block mb-2 font-medium text-white">Block Size (Context): <span id="block-size-value" class="font-bold text-fuchsia-400">8</span></label>
+                <input id="block-size-slider" type="range" min="2" max="24" value="8" class="w-full h-2 bg-gray-700 rounded-lg appearance-none cursor-pointer">
+            </div>
+            <div class="w-full md:w-auto pt-6">
+                <button id="generate-btn" class="w-full bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-lg transition-colors duration-200">
+                    Generate New Batch
+                </button>
+            </div>
+        </div>
+
+        <!-- Data Visualization -->
+        <div class="bg-gray-800 rounded-lg p-6 mb-8 shadow-lg">
+            <h2 class="text-xl font-bold mb-4 text-white">Full Dataset (`data`)</h2>
+            <div id="data-container" class="code-font text-lg leading-relaxed break-words bg-gray-900 p-4 rounded-md"></div>
+        </div>
+        
+        <!-- Explanation and Output -->
+        <div class="flex flex-col lg:flex-row gap-8">
+            <!-- Explanation -->
+            <div class="w-full lg:w-1/3">
+                 <div class="bg-gray-800/50 border border-gray-700 rounded-lg p-6 sticky top-8">
+                    <h2 class="text-xl font-bold text-indigo-400 mb-4">How It Works</h2>
+                    <p id="explanation-text" class="text-gray-300 leading-relaxed">
+                        1. The code picks <strong id="exp-batch-size" class="text-indigo-400">4</strong> random starting positions from the dataset.<br><br>
+                        2. From each position, it grabs a chunk of <strong id="exp-block-size" class="text-fuchsia-400">8</strong> characters for the input <strong class="text-indigo-400">(x)</strong>.<br><br>
+                        3. It also grabs the next chunk (shifted by one) for the target <strong class="text-fuchsia-400">(y)</strong>.<br><br>
+                        4. This creates a "batch" of examples for the model to learn from. Press the button to see it happen!
+                    </p>
+                </div>
+            </div>
+            <!-- Output -->
+            <div class="w-full lg:w-2/3 bg-gray-800 rounded-lg p-6 shadow-lg">
+                <h2 class="text-xl font-bold mb-2 text-white">Generated Batch</h2>
+                <p class="text-sm text-gray-400 mb-4">This is what the model actually sees in one training step.</p>
+                <div class="code-font">
+                    <div id="x-batch-container"></div>
+                    <div id="y-batch-container"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // --- DOM Elements ---
+        const dataContainer = document.getElementById('data-container');
+        const generateBtn = document.getElementById('generate-btn');
+        const batchSizeSlider = document.getElementById('batch-size-slider');
+        const blockSizeSlider = document.getElementById('block-size-slider');
+        const batchSizeValue = document.getElementById('batch-size-value');
+        const blockSizeValue = document.getElementById('block-size-value');
+        const xBatchContainer = document.getElementById('x-batch-container');
+        const yBatchContainer = document.getElementById('y-batch-container');
+        const expBatchSize = document.getElementById('exp-batch-size');
+        const expBlockSize = document.getElementById('exp-block-size');
+
+        // --- Data ---
+        const text = "First Citizen:\nBefore we proceed any further, hear me speak.\n\nAll:\nSpeak, speak.\n\nFirst Citizen:\nYou are all resolved rather to die than to famish?";
+        
+        // --- Initial State ---
+        let batchSize = 4;
+        let blockSize = 8;
+
+        // --- Functions ---
+
+        // Function to render the full dataset text into spans
+        function renderData() {
+            dataContainer.innerHTML = '';
+            text.split('').forEach((char, index) => {
+                const charSpan = document.createElement('span');
+                charSpan.className = 'data-char';
+                charSpan.id = `char-${index}`;
+                charSpan.textContent = char === '\n' ? '↵' : char;
+                if (char === '\n') charSpan.style.color = '#6b7280';
+                dataContainer.appendChild(charSpan);
+            });
+        }
+
+        // Function to clear all highlights
+        function clearHighlights() {
+            document.querySelectorAll('.data-char').forEach(span => {
+                span.classList.remove('highlight-x', 'highlight-y');
+            });
+        }
+
+        // The core get_batch simulation
+        function generateAndDisplayBatch() {
+            clearHighlights();
+            xBatchContainer.innerHTML = '';
+            yBatchContainer.innerHTML = '';
+
+            // 1. Calculate max starting index
+            const maxIndex = text.length - blockSize;
+            if (maxIndex < 0) {
+                 xBatchContainer.innerHTML = '<p class="text-red-400">Block size is larger than the dataset!</p>';
+                 return;
+            }
+
+            // 2. Generate random starting indices (the 'ix' tensor)
+            const startIndices = [];
+            for (let i = 0; i < batchSize; i++) {
+                startIndices.push(Math.floor(Math.random() * (maxIndex + 1)));
+            }
+
+            // 3. Create and display batches
+            startIndices.forEach((startIndex, i) => {
+                // Create x batch
+                const x_sequence = text.substring(startIndex, startIndex + blockSize);
+                const x_row = createBatchRow('x', i, x_sequence, 'x-char');
+                xBatchContainer.appendChild(x_row);
+
+                // Create y batch
+                const y_sequence = text.substring(startIndex + 1, startIndex + blockSize + 1);
+                const y_row = createBatchRow('y', i, y_sequence, 'y-char');
+                yBatchContainer.appendChild(y_row);
+
+                // Highlight the data
+                for (let j = 0; j < blockSize; j++) {
+                    document.getElementById(`char-${startIndex + j}`)?.classList.add('highlight-x');
+                    document.getElementById(`char-${startIndex + j + 1}`)?.classList.add('highlight-y');
+                }
+            });
+        }
+        
+        function createBatchRow(label, index, sequence, cssClass) {
+            const row = document.createElement('div');
+            row.className = 'batch-row';
+            
+            const labelSpan = document.createElement('span');
+            labelSpan.className = 'batch-label';
+            labelSpan.textContent = `${label}[${index}]`;
+            row.appendChild(labelSpan);
+
+            sequence.split('').forEach(char => {
+                const charDiv = document.createElement('div');
+                charDiv.className = `batch-char ${cssClass}`;
+                charDiv.textContent = char === '\n' ? '↵' : char;
+                row.appendChild(charDiv);
+            });
+
+            return row;
+        }
+
+        // --- Event Listeners ---
+        batchSizeSlider.addEventListener('input', (e) => {
+            batchSize = parseInt(e.target.value);
+            batchSizeValue.textContent = batchSize;
+            expBatchSize.textContent = batchSize;
+        });
+
+        blockSizeSlider.addEventListener('input', (e) => {
+            blockSize = parseInt(e.target.value);
+            blockSizeValue.textContent = blockSize;
+            expBlockSize.textContent = blockSize;
+        });
+
+        generateBtn.addEventListener('click', generateAndDisplayBatch);
+
+        // --- Initial Load ---
+        window.onload = () => {
+            renderData();
+            generateAndDisplayBatch();
+        };
+    </script>
+</body>
+</html>
